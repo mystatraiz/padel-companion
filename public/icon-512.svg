@@ -1,0 +1,9 @@
+<svg xmlns='http://www.w3.org/2000/svg' width='512' height='512' viewBox='0 0 512 512'>
+  <rect width='512' height='512' rx='112.64' fill='#1f6b4a'/>
+  <text x='50%' y='54%' dominant-baseline='middle' text-anchor='middle' 
+    font-family='system-ui,sans-serif' font-weight='700' font-size='215.04' fill='white'>PC</text>
+  <rect x='76.8' y='76.8' width='358.4' height='358.4' rx='40.96'
+    fill='none' stroke='rgba(255,255,255,0.35)' stroke-width='12.8'/>
+  <line x1='256' y1='76.8' x2='256' y2='435.2'
+    stroke='rgba(255,255,255,0.35)' stroke-width='12.8'/>
+</svg>

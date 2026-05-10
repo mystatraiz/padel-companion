@@ -1,0 +1,17 @@
+{
+  "name": "Padel Companion",
+  "short_name": "Padel",
+  "description": "Suivi de matchs, progression, matériel padel",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f4f1ea",
+  "theme_color": "#1f6b4a",
+  "orientation": "portrait-primary",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "categories": ["sports", "health", "lifestyle"],
+  "screenshots": []
+}
