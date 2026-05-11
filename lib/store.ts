@@ -2,23 +2,22 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { AppState, Match, MatchInput, Equipment, EquipmentInput, Theme, UpcomingMatch } from './types';
+import type { AppState, Match, MatchInput, Equipment, EquipmentInput, Theme, UpcomingMatch, User } from './types';
 import { DEFAULT_STATE } from './defaults';
 import {
   fsSetMatch, fsSetEquipment, fsSetEquipmentBatch,
   fsDeleteEquipment, fsSetUpcoming, fsDeleteUpcoming,
 } from './firestore';
 
-// ─── Store shape ─────────────────────────────────────────────────────────────
+// ─── Store shape ──────────────────────────────────────────────────────────────
 
 interface StoreActions {
-  // Auth/sync
   setUid:       (uid: string | null) => void;
-  setMatches:   (m: Match[])         => void;
-  setEquipment: (e: Equipment[])     => void;
+  setUser:      (user: User) => void;
+  setMatches:   (m: Match[]) => void;
+  setEquipment: (e: Equipment[]) => void;
   setUpcoming:  (u: UpcomingMatch[]) => void;
 
-  // App actions
   setTheme:        (theme: Theme) => void;
   addMatch:        (match: MatchInput) => void;
   addEquipment:    (item: EquipmentInput) => void;
@@ -33,30 +32,26 @@ interface StoreState extends AppState {
   uid: string | null;
 }
 
-// ─── Store ───────────────────────────────────────────────────────────────────
+// ─── Store ────────────────────────────────────────────────────────────────────
 
 export const useStore = create<StoreState & StoreActions>()(
   persist(
     (set, get) => ({
-      // State
       uid: null,
       ...DEFAULT_STATE,
 
-      // ── Auth / Firestore sync setters ──────────────────────────────────────
       setUid:       (uid)       => set({ uid }),
+      setUser:      (user)      => set({ user }),
       setMatches:   (matches)   => set({ matches }),
       setEquipment: (equipment) => set({ equipment }),
       setUpcoming:  (upcoming)  => set({ upcoming }),
 
-      // ── Theme ──────────────────────────────────────────────────────────────
       setTheme: (theme) => set({ theme }),
 
-      // ── Add match + update equipment wear ──────────────────────────────────
       addMatch: (match) =>
         set((s) => {
-          const id       = 'm' + Date.now();
+          const id = 'm' + Date.now();
           const newMatch: Match = { ...match, id };
-
           const equipment = s.equipment.map((e) => {
             if (e.id === match.racket || e.id === match.shoes) {
               const updated = { ...e, hours: Math.min(e.hoursMax, e.hours + match.duration) };
@@ -65,21 +60,18 @@ export const useStore = create<StoreState & StoreActions>()(
             }
             return e;
           });
-
           if (s.uid) fsSetMatch(s.uid, newMatch).catch(() => {});
           return { matches: [newMatch, ...s.matches], equipment };
         }),
 
-      // ── Add equipment ──────────────────────────────────────────────────────
       addEquipment: (item) =>
         set((s) => {
-          const id  = (item.type === 'Raquette' ? 'r' : 's') + Date.now();
+          const id = (item.type === 'Raquette' ? 'r' : 's') + Date.now();
           const eq: Equipment = { ...item, id, hours: 0 };
           if (s.uid) fsSetEquipment(s.uid, eq).catch(() => {});
           return { equipment: [...s.equipment, eq] };
         }),
 
-      // ── Set primary ────────────────────────────────────────────────────────
       setPrimary: (id) =>
         set((s) => {
           const target = s.equipment.find((e) => e.id === id);
@@ -91,14 +83,12 @@ export const useStore = create<StoreState & StoreActions>()(
           return { equipment };
         }),
 
-      // ── Delete equipment ───────────────────────────────────────────────────
       deleteEquipment: (id) =>
         set((s) => {
           if (s.uid) fsDeleteEquipment(s.uid, id).catch(() => {});
           return { equipment: s.equipment.filter((e) => e.id !== id) };
         }),
 
-      // ── Book upcoming slot ─────────────────────────────────────────────────
       bookSlot: (slot) =>
         set((s) => {
           const id = 'u' + Date.now();
@@ -107,25 +97,22 @@ export const useStore = create<StoreState & StoreActions>()(
           return { upcoming: [...s.upcoming, entry] };
         }),
 
-      // ── Cancel upcoming ────────────────────────────────────────────────────
       cancelUpcoming: (id) =>
         set((s) => {
           if (s.uid) fsDeleteUpcoming(s.uid, id).catch(() => {});
           return { upcoming: s.upcoming.filter((u) => u.id !== id) };
         }),
 
-      // ── Reset (dev only) ───────────────────────────────────────────────────
       reset: () => set({ ...DEFAULT_STATE, uid: get().uid }),
     }),
     {
       name: 'padel-pulse-v2',
-      // Only persist theme in localStorage — everything else comes from Firestore
       partialize: (state) => ({ theme: state.theme }),
     }
   )
 );
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 export const wearPct   = (e: Equipment) => Math.round((e.hours / e.hoursMax) * 100);
 export const wearClass = (e: Equipment) => {

@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useStore } from '@/lib/store';
 import { AuthProvider, LoginScreen, useAuth } from './AuthProvider';
+import { ProfileSetup } from './ProfileSetup';
 
 // ─── Theme sync ───────────────────────────────────────────────────────────────
 
@@ -16,30 +17,25 @@ function ThemeSync() {
   return null;
 }
 
-// ─── Auth gate (shows login screen when not authenticated) ────────────────────
+// ─── Spinner ──────────────────────────────────────────────────────────────────
 
-function AuthGate({ children }: { children: React.ReactNode }) {
-  const { user, loading, dataReady } = useAuth();
-
-  // Still checking auth state
-  if (loading) return <LoginScreen />;
-
-  // Not authenticated → show login
-  if (!user) return <LoginScreen />;
-
-  // Authenticated but Firestore data not yet loaded → spinner
-  if (!dataReady) return (
-    <div style={{
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      height: '100dvh', background: 'var(--bg)',
-    }}>
-      <div style={{
-        width: 28, height: 28, borderRadius: '50%',
-        border: '3px solid var(--accent)', borderTopColor: 'transparent',
-        animation: 'spin 0.8s linear infinite',
-      }} />
+function Spinner() {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100dvh', background: 'var(--bg)' }}>
+      <div style={{ width: 28, height: 28, borderRadius: '50%', border: '3px solid var(--accent)', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} />
     </div>
   );
+}
+
+// ─── Auth gate ────────────────────────────────────────────────────────────────
+
+function AuthGate({ children }: { children: React.ReactNode }) {
+  const { user, loading, dataReady, profileComplete } = useAuth();
+
+  if (loading)          return <LoginScreen />;
+  if (!user)            return <LoginScreen />;
+  if (!profileComplete) return dataReady ? <ProfileSetup /> : <Spinner />;
+  if (!dataReady)       return <Spinner />;
 
   return <>{children}</>;
 }

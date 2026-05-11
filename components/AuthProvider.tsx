@@ -6,22 +6,24 @@ import {
   GoogleAuthProvider, type User,
 } from 'firebase/auth';
 import { getFirebaseAuth } from '@/lib/firebase';
-import { isNewUser, seedDefaultData, subscribeUserData } from '@/lib/firestore';
+import { getUserSetupStatus, seedDefaultData, subscribeUserData } from '@/lib/firestore';
 import { useStore } from '@/lib/store';
 
-// ─── Context ─────────────────────────────────────────────────────────────────
+// ─── Context ──────────────────────────────────────────────────────────────────
 
 interface AuthCtx {
-  user:      User | null;
-  loading:   boolean;
-  dataReady: boolean;
-  signIn:    () => Promise<void>;
-  signOut:   () => Promise<void>;
+  user:            User | null;
+  loading:         boolean;
+  dataReady:       boolean;
+  profileComplete: boolean;
+  completeProfile: () => void;
+  signIn:          () => Promise<void>;
+  signOut:         () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthCtx>({
-  user: null, loading: true, dataReady: false,
-  signIn: async () => {}, signOut: async () => {},
+  user: null, loading: true, dataReady: false, profileComplete: false,
+  completeProfile: () => {}, signIn: async () => {}, signOut: async () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -29,20 +31,21 @@ export const useAuth = () => useContext(AuthContext);
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user,      setUser]      = useState<User | null>(null);
-  const [loading,   setLoading]   = useState(true);
-  const [dataReady, setDataReady] = useState(false);
+  const [user,            setUser]            = useState<User | null>(null);
+  const [loading,         setLoading]         = useState(true);
+  const [dataReady,       setDataReady]       = useState(false);
+  const [profileComplete, setProfileComplete] = useState(false);
 
   const unsubDataRef = useRef<(() => void) | null>(null);
 
   const setUid       = useStore((s) => s.setUid);
+  const setStoreUser = useStore((s) => s.setUser);
   const setMatches   = useStore((s) => s.setMatches);
   const setEquipment = useStore((s) => s.setEquipment);
   const setUpcoming  = useStore((s) => s.setUpcoming);
 
   useEffect(() => {
     const unsubAuth = onAuthStateChanged(getFirebaseAuth(), async (firebaseUser) => {
-      // Tear down any existing Firestore subscription
       unsubDataRef.current?.();
       unsubDataRef.current = null;
 
@@ -50,12 +53,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(firebaseUser);
         setUid(firebaseUser.uid);
 
-        // Seed default data on first login
-        if (await isNewUser(firebaseUser.uid)) {
+        // One Firestore read: get user doc status
+        const { isNew, profileComplete: pc, profile } = await getUserSetupStatus(firebaseUser.uid);
+
+        if (isNew) {
           await seedDefaultData(firebaseUser.uid, firebaseUser.displayName);
+          setProfileComplete(false);
+        } else {
+          setProfileComplete(pc);
+          // Load saved profile into store
+          if (pc && profile) {
+            const firstName = (profile as any).firstName ?? '';
+            const lastName  = (profile as any).lastName  ?? '';
+            const name      = `${firstName} ${lastName}`.trim() || firebaseUser.displayName || 'Joueur';
+            const initials  = [firstName[0], lastName[0]].filter(Boolean).join('').toUpperCase()
+                              || name[0].toUpperCase();
+            setStoreUser({ name, initials, level: (profile as any).level ?? 5, ...profile });
+          }
         }
 
-        // Track how many collections have fired their first snapshot
+        // Subscribe to Firestore collections
         const ready = { m: false, e: false, u: false };
         const checkAllReady = () => {
           if (ready.m && ready.e && ready.u) setDataReady(true);
@@ -71,6 +88,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(null);
         setUid(null);
         setDataReady(false);
+        setProfileComplete(false);
       }
 
       setLoading(false);
@@ -82,11 +100,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const signIn  = async () => { await signInWithPopup(getFirebaseAuth(), new GoogleAuthProvider()); };
-  const signOut = async () => { await fbSignOut(getFirebaseAuth()); };
+  const signIn          = async () => { await signInWithPopup(getFirebaseAuth(), new GoogleAuthProvider()); };
+  const signOut         = async () => { await fbSignOut(getFirebaseAuth()); };
+  const completeProfile = ()       => setProfileComplete(true);
 
   return (
-    <AuthContext.Provider value={{ user, loading, dataReady, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, loading, dataReady, profileComplete, completeProfile, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );
@@ -104,50 +123,24 @@ export function LoginScreen() {
   };
 
   if (loading) return (
-    <div style={{
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      height: '100dvh', background: 'var(--bg)',
-    }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100dvh', background: 'var(--bg)' }}>
       <div style={{ width: 28, height: 28, borderRadius: '50%', border: '3px solid var(--accent)', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} />
     </div>
   );
 
   return (
-    <div style={{
-      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      height: '100dvh', background: 'var(--bg)', padding: '2rem', gap: '2rem',
-    }}>
-      {/* Logo mark */}
-      <div style={{
-        width: 80, height: 80, borderRadius: 18, background: 'var(--accent)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 32, fontWeight: 700, color: 'white', fontFamily: 'var(--font-inter-tight)',
-      }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100dvh', background: 'var(--bg)', padding: '2rem', gap: '2rem' }}>
+      <div style={{ width: 80, height: 80, borderRadius: 18, background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, fontWeight: 700, color: 'white', fontFamily: 'var(--font-inter-tight)' }}>
         PP
       </div>
-
       <div style={{ textAlign: 'center' }}>
-        <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--ink)', letterSpacing: '-0.03em', marginBottom: 6 }}>
-          PadelPulse
-        </div>
-        <div style={{ fontSize: 14, color: 'var(--ink-faint)' }}>
-          Connecte-toi pour accéder à tes stats
-        </div>
+        <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--ink)', letterSpacing: '-0.03em', marginBottom: 6 }}>PadelPulse</div>
+        <div style={{ fontSize: 14, color: 'var(--ink-faint)' }}>Connecte-toi pour accéder à tes stats</div>
       </div>
-
       <button
-        onClick={handleSignIn}
-        disabled={busy}
-        style={{
-          display: 'flex', alignItems: 'center', gap: 10,
-          padding: '12px 24px', borderRadius: 12,
-          background: 'var(--surface)', border: '1px solid var(--border)',
-          color: 'var(--ink)', fontSize: 15, fontWeight: 600,
-          cursor: busy ? 'not-allowed' : 'pointer', opacity: busy ? 0.6 : 1,
-          fontFamily: 'var(--font-inter-tight)', transition: 'opacity 0.15s',
-        }}
+        onClick={handleSignIn} disabled={busy}
+        style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 24px', borderRadius: 12, background: 'var(--bg-elev)', border: '1px solid var(--line)', color: 'var(--ink)', fontSize: 15, fontWeight: 600, cursor: busy ? 'not-allowed' : 'pointer', opacity: busy ? 0.6 : 1, fontFamily: 'var(--font-inter-tight)', transition: 'opacity 0.15s' }}
       >
-        {/* Google G icon */}
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
           <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
           <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/>

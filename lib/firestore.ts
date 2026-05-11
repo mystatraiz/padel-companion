@@ -5,24 +5,34 @@ import {
   onSnapshot, query, orderBy, writeBatch,
 } from 'firebase/firestore';
 import { getDB } from './firebase';
-import type { Match, Equipment, UpcomingMatch } from './types';
+import type { Match, Equipment, UpcomingMatch, User } from './types';
 import { DEFAULT_STATE } from './defaults';
 
-// ─── Collection references (lazy — db only resolved at call time) ─────────────
+// ─── Collection references ────────────────────────────────────────────────────
 
 const userDoc     = (uid: string) => doc(getDB(), 'users', uid);
 const matchesCol  = (uid: string) => collection(getDB(), 'users', uid, 'matches');
 const equipCol    = (uid: string) => collection(getDB(), 'users', uid, 'equipment');
 const upcomingCol = (uid: string) => collection(getDB(), 'users', uid, 'upcoming');
 
-// ─── New-user detection ──────────────────────────────────────────────────────
+// ─── Setup status (single read) ───────────────────────────────────────────────
 
-export async function isNewUser(uid: string): Promise<boolean> {
+export async function getUserSetupStatus(uid: string): Promise<{
+  isNew: boolean;
+  profileComplete: boolean;
+  profile: Partial<User> | null;
+}> {
   const snap = await getDoc(userDoc(uid));
-  return !snap.exists();
+  if (!snap.exists()) return { isNew: true, profileComplete: false, profile: null };
+  const data = snap.data();
+  return {
+    isNew: false,
+    profileComplete: !!data?.profileComplete,
+    profile: data?.profileComplete ? (data as Partial<User>) : null,
+  };
 }
 
-// ─── Seed default data (first login) ────────────────────────────────────────
+// ─── Seed default data (first login) ─────────────────────────────────────────
 
 export async function seedDefaultData(uid: string, displayName: string | null) {
   const batch = writeBatch(getDB());
@@ -30,6 +40,7 @@ export async function seedDefaultData(uid: string, displayName: string | null) {
   batch.set(userDoc(uid), {
     displayName,
     createdAt: new Date().toISOString(),
+    profileComplete: false,
   });
 
   DEFAULT_STATE.matches.forEach((m) =>
@@ -43,6 +54,20 @@ export async function seedDefaultData(uid: string, displayName: string | null) {
   );
 
   await batch.commit();
+}
+
+// ─── Save user profile (onboarding) ──────────────────────────────────────────
+
+export async function saveUserProfile(uid: string, data: {
+  firstName: string;
+  lastName: string;
+  nickname: string;
+  level: number;
+  dominantHand: 'left' | 'right';
+  preferredSide: 'left' | 'right';
+  phone: string;
+}) {
+  await setDoc(userDoc(uid), { ...data, profileComplete: true }, { merge: true });
 }
 
 // ─── Write helpers ────────────────────────────────────────────────────────────
@@ -60,7 +85,7 @@ export async function fsSetEquipmentBatch(uid: string, items: Equipment[]) {
   await batch.commit();
 }
 
-// ─── Real-time subscription ──────────────────────────────────────────────────
+// ─── Real-time subscription ───────────────────────────────────────────────────
 
 export function subscribeUserData(
   uid: string,

@@ -6,6 +6,13 @@ export interface User {
   name: string;
   initials: string;
   level: number;
+  // Extended profile (set during onboarding)
+  firstName?: string;
+  lastName?: string;
+  nickname?: string;
+  dominantHand?: 'left' | 'right';
+  preferredSide?: 'left' | 'right';
+  phone?: string;
 }
 
 export interface Match {
