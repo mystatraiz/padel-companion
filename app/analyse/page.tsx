@@ -158,10 +158,9 @@ function Scoreboard({ score, matchOver }: { score: Score; matchOver: boolean }) 
 
 // ─── Player panel ─────────────────────────────────────────────────────────────
 
-function PlayerPanel({ label, color, onStat, disabled }: {
-  label: string; color: string; onStat: (type: StatType) => void; disabled?: boolean;
+function PlayerPanel({ label, color, onStat, disabled, flipped }: {
+  label: string; color: string; onStat: (type: StatType) => void; disabled?: boolean; flipped?: boolean;
 }) {
-  const [flipped, setFlipped] = useState(false);
   const cd1 = flipped ? 'revers' : 'coup-droit';
   const cd2 = flipped ? 'coup-droit' : 'revers';
 
@@ -187,19 +186,10 @@ function PlayerPanel({ label, color, onStat, disabled }: {
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 7 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 6, borderBottom: `2px solid ${color}` }}>
+      <div style={{ paddingBottom: 6, borderBottom: `2px solid ${color}`, textAlign: 'center' }}>
         <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color, fontFamily: 'var(--font-jetbrains-mono, JetBrains Mono), monospace' }}>
           {label}
         </span>
-        <button
-          onClick={() => setFlipped((f) => !f)}
-          title="Inverser coup droit / revers"
-          style={{
-            background: flipped ? color : 'var(--bg-soft)', border: 'none', borderRadius: 6,
-            padding: '3px 7px', fontSize: 11, fontWeight: 700, cursor: 'pointer',
-            color: flipped ? 'white' : 'var(--ink-faint)', transition: 'all .15s', lineHeight: 1,
-          }}
-        >⇄</button>
       </div>
       <Btn type="smash"    style={{ background: 'var(--ink)', color: 'var(--bg-elev)', padding: '15px 4px', fontSize: 13 }} />
       <div style={{ display: 'flex', gap: 5 }}>
@@ -423,6 +413,7 @@ export default function AnalysePage() {
   const [pauseOnTap,   setPauseOnTap]   = useState(true);
   const [showSave,     setShowSave]     = useState(false);
   const [saved,        setSaved]        = useState(false);
+  const [flipped,      setFlipped]      = useState(false);
 
   const currentScore = scoreHistory[scoreHistory.length - 1];
   const matchOver    = currentScore.ownSets >= 2 || currentScore.oppSets >= 2;
@@ -546,10 +537,28 @@ export default function AnalysePage() {
       )}
 
       {/* ── Panneaux joueurs ── */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
-        <PlayerPanel label="Joueur Gauche" color="var(--accent)" onStat={(t) => logStat('left', t)}  disabled={matchOver} />
-        <div style={{ width: 1, background: 'var(--line)', flexShrink: 0 }} />
-        <PlayerPanel label="Joueur Droit"  color="#7c6fcd"       onStat={(t) => logStat('right', t)} disabled={matchOver} />
+      <div style={{ display: 'flex', gap: 10, marginBottom: 10, alignItems: 'stretch' }}>
+        <PlayerPanel label="Joueur Gauche" color="var(--accent)" onStat={(t) => logStat('left', t)}  disabled={matchOver} flipped={flipped} />
+        {/* Séparateur + bouton inversion */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+          <div style={{ flex: 1, width: 1, background: 'var(--line)' }} />
+          <button
+            onClick={() => setFlipped((f) => !f)}
+            disabled={matchOver}
+            title="Changer de côté"
+            style={{
+              background: flipped ? 'var(--ink)' : 'var(--bg-soft)',
+              border: 'none', borderRadius: 8, width: 32, height: 32,
+              fontSize: 14, cursor: matchOver ? 'default' : 'pointer',
+              color: flipped ? 'white' : 'var(--ink-soft)',
+              opacity: matchOver ? 0.3 : 1, transition: 'all .15s',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >⇄</button>
+          <div style={{ flex: 1, width: 1, background: 'var(--line)' }} />
+        </div>
+        <PlayerPanel label="Joueur Droit"  color="#7c6fcd"       onStat={(t) => logStat('right', t)} disabled={matchOver} flipped={flipped} />
       </div>
 
       {/* ── Point adverse direct ── */}
