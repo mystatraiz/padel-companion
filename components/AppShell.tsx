@@ -30,11 +30,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   const nav = [
-    { id: 'home', label: 'Accueil', href: '/', icon: 'home' },
-    { id: 'calendar', label: 'Agenda', href: '/calendar', icon: 'calendar' },
-    { id: 'stats', label: 'Stats', href: '/stats', icon: 'stats' },
-    { id: 'equipment', label: 'Matériel', href: '/equipment', icon: 'racket' },
-    { id: 'profile', label: 'Profil', href: '/profile', icon: 'user' },
+    { id: 'home',      label: 'Accueil',  href: '/',         icon: 'home' },
+    { id: 'calendar',  label: 'Agenda',   href: '/calendar', icon: 'calendar' },
+    { id: 'analyse',   label: 'Analyse',  href: '/analyse',  icon: 'video' },
+    { id: 'stats',     label: 'Stats',    href: '/stats',    icon: 'stats' },
+    { id: 'equipment', label: 'Matériel', href: '/equipment',icon: 'racket' },
+    { id: 'profile',   label: 'Profil',   href: '/profile',  icon: 'user' },
   ];
 
   const isActive = (href: string) => {

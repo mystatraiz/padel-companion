@@ -67,6 +67,8 @@ export function Icon({ name, size = 18, stroke = 1.6 }: IconProps) {
       return <svg {...props}><path d="M21 13a9 9 0 1 1-10-10 7 7 0 0 0 10 10z"/></svg>;
     case 'logout':
       return <svg {...props}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>;
+    case 'video':
+      return <svg {...props}><rect x="2" y="7" width="13" height="10" rx="2"/><path d="M15 9.5l5-3v11l-5-3V9.5z"/></svg>;
     default:
       return null;
   }
