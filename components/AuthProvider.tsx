@@ -53,37 +53,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(firebaseUser);
         setUid(firebaseUser.uid);
 
-        // One Firestore read: get user doc status
-        const { isNew, profileComplete: pc, profile } = await getUserSetupStatus(firebaseUser.uid);
+        try {
+          // One Firestore read: get user doc status
+          const { isNew, profileComplete: pc, profile } = await getUserSetupStatus(firebaseUser.uid);
 
-        if (isNew) {
-          await seedDefaultData(firebaseUser.uid, firebaseUser.displayName);
-          setProfileComplete(false);
-        } else {
-          setProfileComplete(pc);
-          // Load saved profile into store
-          if (pc && profile) {
-            const firstName = (profile as any).firstName ?? '';
-            const lastName  = (profile as any).lastName  ?? '';
-            const name      = `${firstName} ${lastName}`.trim() || firebaseUser.displayName || 'Joueur';
-            const initials  = [firstName[0], lastName[0]].filter(Boolean).join('').toUpperCase()
-                              || name[0].toUpperCase();
-            setStoreUser({ name, initials, level: (profile as any).level ?? 5, ...profile });
+          if (isNew) {
+            await seedDefaultData(firebaseUser.uid, firebaseUser.displayName);
+            setProfileComplete(false);
+          } else {
+            setProfileComplete(pc);
+            // Load saved profile into store
+            if (pc && profile) {
+              const firstName = (profile as any).firstName ?? '';
+              const lastName  = (profile as any).lastName  ?? '';
+              const name      = `${firstName} ${lastName}`.trim() || firebaseUser.displayName || 'Joueur';
+              const initials  = [firstName[0], lastName[0]].filter(Boolean).join('').toUpperCase()
+                                || name[0].toUpperCase();
+              setStoreUser({ name, initials, level: (profile as any).level ?? 5, ...profile });
+            }
           }
+
+          // Subscribe to Firestore collections
+          const ready = { m: false, e: false, u: false };
+          const checkAllReady = () => {
+            if (ready.m && ready.e && ready.u) setDataReady(true);
+          };
+
+          unsubDataRef.current = subscribeUserData(
+            firebaseUser.uid,
+            (m) => { setMatches(m);   if (!ready.m) { ready.m = true; checkAllReady(); } },
+            (e) => { setEquipment(e); if (!ready.e) { ready.e = true; checkAllReady(); } },
+            (u) => { setUpcoming(u);  if (!ready.u) { ready.u = true; checkAllReady(); } },
+          );
+        } catch (err) {
+          console.error('Firestore init error:', err);
+          // Still show the app — profile setup will handle missing data
+          setProfileComplete(false);
+          setDataReady(true);
         }
-
-        // Subscribe to Firestore collections
-        const ready = { m: false, e: false, u: false };
-        const checkAllReady = () => {
-          if (ready.m && ready.e && ready.u) setDataReady(true);
-        };
-
-        unsubDataRef.current = subscribeUserData(
-          firebaseUser.uid,
-          (m) => { setMatches(m);   if (!ready.m) { ready.m = true; checkAllReady(); } },
-          (e) => { setEquipment(e); if (!ready.e) { ready.e = true; checkAllReady(); } },
-          (u) => { setUpcoming(u);  if (!ready.u) { ready.u = true; checkAllReady(); } },
-        );
       } else {
         setUser(null);
         setUid(null);

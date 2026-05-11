@@ -34,7 +34,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 
   if (loading)          return <LoginScreen />;
   if (!user)            return <LoginScreen />;
-  if (!profileComplete) return dataReady ? <ProfileSetup /> : <Spinner />;
+  if (!profileComplete) return <ProfileSetup />;
   if (!dataReady)       return <Spinner />;
 
   return <>{children}</>;
