@@ -5,14 +5,15 @@ import { useRef, useState, useCallback } from 'react';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Team     = 'own' | 'opp';
+type Player   = 'left' | 'right' | 'opp';
 type StatType = 'smash' | 'coup-droit' | 'revers' | 'faute-directe' | 'faute-provoquee' | 'winner';
 
 interface StatEvent {
   id:        number;
   time:      number;
-  team:      Team;
+  player:    Player;
   type:      StatType;
-  awardedTo: Team | null; // qui a gagné le point grâce à ce coup
+  awardedTo: Team | null;
 }
 
 interface Score {
@@ -41,14 +42,19 @@ const STAT_LABELS: Record<StatType, string> = {
   'winner':          'Winner',
 };
 
+const PLAYER_LABELS: Record<Player, string> = {
+  left:  'J. Gauche',
+  right: 'J. Droit',
+  opp:   'Adv.',
+};
+
 // ─── Scoring logic ────────────────────────────────────────────────────────────
 
-/** Qui gagne le point selon le type de coup et l'équipe qui l'a joué */
 function pointWinner(team: Team, type: StatType): Team | null {
   if (type === 'winner')          return team;
-  if (type === 'faute-provoquee') return team;           // on a provoqué → on gagne
-  if (type === 'faute-directe')   return team === 'own' ? 'opp' : 'own'; // faute = point adverse
-  return null; // smash, coup-droit, revers → pas de point automatique
+  if (type === 'faute-provoquee') return team;
+  if (type === 'faute-directe')   return team === 'own' ? 'opp' : 'own';
+  return null;
 }
 
 function displayPoints(ownPts: number, oppPts: number): [string, string] {
@@ -64,16 +70,13 @@ function awardGame(s: Score, winner: Team): Score {
   const pg = winner === 'opp' ? s.oppGames + 1 : s.oppGames;
   const base = { ...s, ownPts: 0, oppPts: 0, ownGames: og, oppGames: pg };
 
-  const setWon = (w: Team) => {
-    const g: [number, number] = w === 'own' ? [og, pg] : [og, pg];
-    return {
-      ...base,
-      ownGames: 0, oppGames: 0,
-      ownSets: w === 'own' ? s.ownSets + 1 : s.ownSets,
-      oppSets: w === 'opp' ? s.oppSets + 1 : s.oppSets,
-      setHistory: [...s.setHistory, g],
-    };
-  };
+  const setWon = (w: Team): Score => ({
+    ...base,
+    ownGames: 0, oppGames: 0,
+    ownSets: w === 'own' ? s.ownSets + 1 : s.ownSets,
+    oppSets: w === 'opp' ? s.oppSets + 1 : s.oppSets,
+    setHistory: [...s.setHistory, [og, pg]],
+  });
 
   if (og >= 6 && og - pg >= 2) return setWon('own');
   if (og === 7 && pg === 6)    return setWon('own');
@@ -85,7 +88,6 @@ function awardGame(s: Score, winner: Team): Score {
 function awardPoint(s: Score, winner: Team): Score {
   const op = winner === 'own' ? s.ownPts + 1 : s.ownPts;
   const pp = winner === 'opp' ? s.oppPts + 1 : s.oppPts;
-  // Jeu gagné : 4 pts et 2 d'écart (ou avantage converti)
   if (op >= 4 && op - pp >= 2) return awardGame({ ...s, ownPts: 0, oppPts: 0 }, 'own');
   if (pp >= 4 && pp - op >= 2) return awardGame({ ...s, ownPts: 0, oppPts: 0 }, 'opp');
   return { ...s, ownPts: op, oppPts: pp };
@@ -93,29 +95,23 @@ function awardPoint(s: Score, winner: Team): Score {
 
 // ─── Scoreboard ───────────────────────────────────────────────────────────────
 
-function Scoreboard({ score, ownLabel, oppLabel }: {
-  score: Score; ownLabel: string; oppLabel: string;
-}) {
+function Scoreboard({ score }: { score: Score }) {
   const [ownPt, oppPt] = displayPoints(score.ownPts, score.oppPts);
   const deuce = score.ownPts >= 3 && score.oppPts >= 3 && score.ownPts === score.oppPts;
 
-  const row = (label: string, sets: number, games: number, pts: string, accent: string) => (
+  const row = (label: string, games: number, pts: string, accent: string, isOwn: boolean) => (
     <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
-      {/* Team label */}
-      <div style={{ width: 90, fontSize: 11, fontWeight: 700, color: accent, letterSpacing: '.04em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 8 }}>
+      <div style={{ width: 86, fontSize: 11, fontWeight: 700, color: accent, letterSpacing: '.04em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 8 }}>
         {label}
       </div>
-      {/* Set history */}
       {score.setHistory.map(([o, p], i) => (
         <div key={i} style={{ width: 28, textAlign: 'center', fontSize: 16, fontWeight: 700, color: 'var(--ink-faint)', fontFamily: 'var(--font-jetbrains-mono, JetBrains Mono), monospace' }}>
-          {label === ownLabel ? o : p}
+          {isOwn ? o : p}
         </div>
       ))}
-      {/* Current set games */}
       <div style={{ width: 36, textAlign: 'center', fontSize: 22, fontWeight: 800, color: 'var(--ink)', fontFamily: 'var(--font-jetbrains-mono, JetBrains Mono), monospace', marginLeft: score.setHistory.length ? 8 : 0 }}>
         {games}
       </div>
-      {/* Current game points */}
       <div style={{ width: 44, textAlign: 'center', fontSize: 18, fontWeight: 700, color: pts === 'Ad' ? accent : 'var(--ink-soft)', fontFamily: 'var(--font-jetbrains-mono, JetBrains Mono), monospace', marginLeft: 12 }}>
         {pts}
       </div>
@@ -123,37 +119,34 @@ function Scoreboard({ score, ownLabel, oppLabel }: {
   );
 
   return (
-    <div style={{
-      background: 'var(--bg-elev)', borderRadius: 16, border: '1px solid var(--line)',
-      padding: '14px 16px', marginBottom: 12,
-    }}>
-      {/* Header */}
+    <div style={{ background: 'var(--bg-elev)', borderRadius: 16, border: '1px solid var(--line)', padding: '14px 16px', marginBottom: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginBottom: 10 }}>
-        <div style={{ width: 90 }} />
+        <div style={{ width: 86 }} />
         {score.setHistory.map((_, i) => (
-          <div key={i} style={{ width: 28, textAlign: 'center', fontSize: 10, fontWeight: 600, color: 'var(--ink-faint)', fontFamily: 'var(--font-jetbrains-mono, JetBrains Mono), monospace', letterSpacing: '.06em' }}>
-            S{i + 1}
-          </div>
+          <div key={i} style={{ width: 28, textAlign: 'center', fontSize: 10, fontWeight: 600, color: 'var(--ink-faint)', fontFamily: 'var(--font-jetbrains-mono, JetBrains Mono), monospace', letterSpacing: '.06em' }}>S{i + 1}</div>
         ))}
-        <div style={{ width: 36, textAlign: 'center', fontSize: 10, fontWeight: 600, color: 'var(--ink-faint)', fontFamily: 'var(--font-jetbrains-mono, JetBrains Mono), monospace', letterSpacing: '.06em', marginLeft: score.setHistory.length ? 8 : 0 }}>
-          Jeux
-        </div>
-        <div style={{ width: 44, textAlign: 'center', fontSize: 10, fontWeight: 600, color: 'var(--ink-faint)', fontFamily: 'var(--font-jetbrains-mono, JetBrains Mono), monospace', letterSpacing: '.06em', marginLeft: 12 }}>
-          {deuce ? 'Deuce' : 'Pts'}
-        </div>
+        <div style={{ width: 36, textAlign: 'center', fontSize: 10, fontWeight: 600, color: 'var(--ink-faint)', fontFamily: 'var(--font-jetbrains-mono, JetBrains Mono), monospace', letterSpacing: '.06em', marginLeft: score.setHistory.length ? 8 : 0 }}>Jeux</div>
+        <div style={{ width: 44, textAlign: 'center', fontSize: 10, fontWeight: 600, color: 'var(--ink-faint)', fontFamily: 'var(--font-jetbrains-mono, JetBrains Mono), monospace', letterSpacing: '.06em', marginLeft: 12 }}>{deuce ? 'Deuce' : 'Pts'}</div>
       </div>
-      {row(ownLabel, score.ownSets, score.ownGames, ownPt, 'var(--accent)')}
+      {row('Mon équipe', score.ownGames, ownPt, 'var(--accent)', true)}
       <div style={{ height: 1, background: 'var(--line)', margin: '8px 0' }} />
-      {row(oppLabel, score.oppSets, score.oppGames, oppPt, 'var(--warn)')}
+      {row('Adversaires', score.oppGames, oppPt, 'var(--warn)', false)}
     </div>
   );
 }
 
-// ─── Team panel ───────────────────────────────────────────────────────────────
+// ─── Player panel ─────────────────────────────────────────────────────────────
 
-function TeamPanel({ label, color, onStat }: {
-  label: string; color: string; onStat: (type: StatType) => void;
+function PlayerPanel({ label, color, onStat }: {
+  label: string;
+  color: string;
+  onStat: (type: StatType) => void;
 }) {
+  const [flipped, setFlipped] = useState(false);
+
+  const cd1 = flipped ? 'revers'     : 'coup-droit';
+  const cd2 = flipped ? 'coup-droit' : 'revers';
+
   const Btn = ({ type, style }: { type: StatType; style?: React.CSSProperties }) => (
     <button
       onClick={() => onStat(type)}
@@ -174,34 +167,41 @@ function TeamPanel({ label, color, onStat }: {
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 7 }}>
-      <div style={{
-        textAlign: 'center', fontSize: 10, fontWeight: 700, letterSpacing: '.1em',
-        textTransform: 'uppercase', color,
-        fontFamily: 'var(--font-jetbrains-mono, JetBrains Mono), monospace',
-        paddingBottom: 6, borderBottom: `2px solid ${color}`,
-      }}>{label}</div>
-
-      {/* Smash */}
-      <div style={{ display: 'flex', gap: 5 }}>
-        <Btn type="smash" style={{ background: 'var(--ink)', color: 'var(--bg-elev)', padding: '15px 4px', fontSize: 13 }} />
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 6, borderBottom: `2px solid ${color}` }}>
+        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color, fontFamily: 'var(--font-jetbrains-mono, JetBrains Mono), monospace' }}>
+          {label}
+        </span>
+        <button
+          onClick={() => setFlipped((f) => !f)}
+          title="Inverser coup droit / revers"
+          style={{
+            background: flipped ? color : 'var(--bg-soft)',
+            border: 'none', borderRadius: 6, padding: '3px 7px',
+            fontSize: 11, fontWeight: 700, cursor: 'pointer',
+            color: flipped ? 'white' : 'var(--ink-faint)',
+            transition: 'all .15s', lineHeight: 1,
+          }}
+        >⇄</button>
       </div>
 
-      {/* CD + Revers */}
+      {/* Smash */}
+      <Btn type="smash" style={{ background: 'var(--ink)', color: 'var(--bg-elev)', padding: '15px 4px', fontSize: 13 }} />
+
+      {/* Coup droit + Revers (inversables) */}
       <div style={{ display: 'flex', gap: 5 }}>
-        <Btn type="coup-droit" style={{ background: 'var(--bg-soft)', color: 'var(--ink)' }} />
-        <Btn type="revers"     style={{ background: 'var(--bg-soft)', color: 'var(--ink)' }} />
+        <Btn type={cd1} style={{ background: 'var(--bg-soft)', color: 'var(--ink)' }} />
+        <Btn type={cd2} style={{ background: 'var(--bg-soft)', color: 'var(--ink)' }} />
       </div>
 
       {/* Fautes */}
       <div style={{ display: 'flex', gap: 5 }}>
-        <Btn type="faute-directe"   style={{ background: `color-mix(in srgb, var(--warn) 12%, transparent)`, color: 'var(--warn)', border: `1px solid color-mix(in srgb, var(--warn) 25%, transparent)`, fontSize: 11 }} />
-        <Btn type="faute-provoquee" style={{ background: `color-mix(in srgb, var(--warn) 12%, transparent)`, color: 'var(--warn)', border: `1px solid color-mix(in srgb, var(--warn) 25%, transparent)`, fontSize: 10 }} />
+        <Btn type="faute-directe"   style={{ background: 'color-mix(in srgb, var(--warn) 12%, transparent)', color: 'var(--warn)', border: '1px solid color-mix(in srgb, var(--warn) 25%, transparent)', fontSize: 11 }} />
+        <Btn type="faute-provoquee" style={{ background: 'color-mix(in srgb, var(--warn) 12%, transparent)', color: 'var(--warn)', border: '1px solid color-mix(in srgb, var(--warn) 25%, transparent)', fontSize: 10 }} />
       </div>
 
       {/* Winner */}
-      <div style={{ display: 'flex', gap: 5 }}>
-        <Btn type="winner" style={{ background: color, color: 'white', padding: '16px 4px', fontSize: 14, borderRadius: 14 }} />
-      </div>
+      <Btn type="winner" style={{ background: color, color: 'white', padding: '16px 4px', fontSize: 14, borderRadius: 14 }} />
     </div>
   );
 }
@@ -214,21 +214,22 @@ export default function AnalysePage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileRef  = useRef<HTMLInputElement>(null);
 
-  const [videoSrc,      setVideoSrc]      = useState<string | null>(null);
-  const [events,        setEvents]        = useState<StatEvent[]>([]);
-  const [scoreHistory,  setScoreHistory]  = useState<Score[]>([INIT_SCORE]);
-  const [pauseOnTap,    setPauseOnTap]    = useState(true);
+  const [videoSrc,     setVideoSrc]     = useState<string | null>(null);
+  const [events,       setEvents]       = useState<StatEvent[]>([]);
+  const [scoreHistory, setScoreHistory] = useState<Score[]>([INIT_SCORE]);
+  const [pauseOnTap,   setPauseOnTap]   = useState(true);
 
   const currentScore = scoreHistory[scoreHistory.length - 1];
 
-  const logStat = useCallback((team: Team, type: StatType) => {
+  const logStat = useCallback((player: Player, type: StatType) => {
     const time = videoRef.current?.currentTime ?? 0;
     if (pauseOnTap) videoRef.current?.pause();
 
+    const team: Team = player === 'opp' ? 'opp' : 'own';
     const winner = pointWinner(team, type);
     const newScore = winner ? awardPoint(currentScore, winner) : currentScore;
 
-    setEvents((prev) => [{ id: Date.now(), time, team, type, awardedTo: winner }, ...prev]);
+    setEvents((prev) => [{ id: Date.now(), time, player, type, awardedTo: winner }, ...prev]);
     if (winner) setScoreHistory((prev) => [...prev, newScore]);
   }, [pauseOnTap, currentScore]);
 
@@ -246,8 +247,8 @@ export default function AnalysePage() {
     }
   };
 
-  const total = (team: Team, type?: StatType) =>
-    events.filter((e) => e.team === team && (!type || e.type === type)).length;
+  const total = (player: Player, type?: StatType) =>
+    events.filter((e) => e.player === player && (!type || e.type === type)).length;
 
   return (
     <>
@@ -261,7 +262,7 @@ export default function AnalysePage() {
         )}
       </div>
 
-      {/* ── Video ── */}
+      {/* ── Vidéo ── */}
       <div style={{
         background: '#111', borderRadius: 16, overflow: 'hidden',
         marginBottom: 12, minHeight: videoSrc ? 0 : 90,
@@ -293,7 +294,7 @@ export default function AnalysePage() {
       </div>
 
       {/* ── Scoreboard ── */}
-      <Scoreboard score={currentScore} ownLabel="Mon équipe" oppLabel="Adversaires" />
+      <Scoreboard score={currentScore} />
 
       {/* ── Pause toggle ── */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, marginBottom: 12 }}>
@@ -310,39 +311,63 @@ export default function AnalysePage() {
         </div>
       </div>
 
-      {/* ── Stat panels ── */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 18 }}>
-        <TeamPanel label="Mon équipe"  color="var(--accent)" onStat={(t) => logStat('own', t)} />
+      {/* ── Panneaux joueurs ── */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
+        <PlayerPanel label="Joueur Gauche" color="var(--accent)" onStat={(t) => logStat('left', t)} />
         <div style={{ width: 1, background: 'var(--line)', flexShrink: 0 }} />
-        <TeamPanel label="Adversaires" color="var(--warn)"   onStat={(t) => logStat('opp', t)} />
+        <PlayerPanel label="Joueur Droit"  color="#7c6fcd"       onStat={(t) => logStat('right', t)} />
       </div>
 
-      {/* ── Stats résumé ── */}
-      {events.length > 0 && (
-        <div style={{
-          display: 'grid', gridTemplateColumns: '1fr 1fr',
-          gap: 10, marginBottom: 16,
-        }}>
-          {(['own', 'opp'] as Team[]).map((team) => (
-            <div key={team} style={{
-              background: 'var(--bg-elev)', borderRadius: 14, padding: '12px 14px',
-              border: `1px solid ${team === 'own' ? 'color-mix(in srgb, var(--accent) 30%, transparent)' : 'color-mix(in srgb, var(--warn) 30%, transparent)'}`,
-            }}>
-              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: team === 'own' ? 'var(--accent)' : 'var(--warn)', marginBottom: 8 }}>
-                {team === 'own' ? 'Mon équipe' : 'Adversaires'}
+      {/* ── Point adverse direct ── */}
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 18 }}>
+        <button
+          onClick={() => logStat('opp', 'winner')}
+          style={{
+            background: 'color-mix(in srgb, var(--warn) 10%, transparent)',
+            border: '1px solid color-mix(in srgb, var(--warn) 30%, transparent)',
+            color: 'var(--warn)', borderRadius: 10,
+            padding: '9px 28px', fontSize: 12, fontWeight: 700,
+            cursor: 'pointer', letterSpacing: '-0.01em',
+            fontFamily: 'var(--font-inter-tight, Inter Tight), system-ui',
+            transition: 'transform .08s',
+          }}
+          onPointerDown={(e)  => { (e.currentTarget as HTMLElement).style.transform = 'scale(.95)'; }}
+          onPointerUp={(e)    => { (e.currentTarget as HTMLElement).style.transform = 'scale(1)'; }}
+          onPointerLeave={(e) => { (e.currentTarget as HTMLElement).style.transform = 'scale(1)'; }}
+        >
+          + Point adverse direct
+        </button>
+      </div>
+
+      {/* ── Stats résumé par joueur ── */}
+      {events.filter(e => e.player !== 'opp').length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
+          {(['left', 'right'] as const).map((player) => {
+            const accent = player === 'left' ? 'var(--accent)' : '#7c6fcd';
+            return (
+              <div key={player} style={{
+                background: 'var(--bg-elev)', borderRadius: 14, padding: '12px 14px',
+                border: `1px solid color-mix(in srgb, ${accent} 30%, transparent)`,
+              }}>
+                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: accent, marginBottom: 8 }}>
+                  {player === 'left' ? 'Joueur Gauche' : 'Joueur Droit'}
+                </div>
+                {(['winner','smash','coup-droit','revers','faute-directe','faute-provoquee'] as StatType[]).map((type) => {
+                  const n = total(player, type);
+                  if (!n) return null;
+                  return (
+                    <div key={type} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--ink-soft)', marginBottom: 3 }}>
+                      <span>{STAT_LABELS[type]}</span>
+                      <span style={{ fontWeight: 700, color: 'var(--ink)', fontFamily: 'var(--font-jetbrains-mono, JetBrains Mono), monospace' }}>{n}</span>
+                    </div>
+                  );
+                })}
+                {total(player) === 0 && (
+                  <div style={{ fontSize: 12, color: 'var(--ink-faint)' }}>Aucun coup</div>
+                )}
               </div>
-              {(['winner','smash','coup-droit','revers','faute-directe','faute-provoquee'] as StatType[]).map((type) => {
-                const n = total(team, type);
-                if (!n) return null;
-                return (
-                  <div key={type} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--ink-soft)', marginBottom: 3 }}>
-                    <span>{STAT_LABELS[type]}</span>
-                    <span style={{ fontWeight: 700, color: 'var(--ink)', fontFamily: 'var(--font-jetbrains-mono, JetBrains Mono), monospace' }}>{n}</span>
-                  </div>
-                );
-              })}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -354,25 +379,30 @@ export default function AnalysePage() {
             <button onClick={undoLast} style={smallBtn}>↩ Annuler</button>
           </div>
           <div style={{ maxHeight: 220, overflowY: 'auto' }}>
-            {events.map((e) => (
-              <div key={e.id} style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                padding: '8px 16px', borderBottom: '1px solid var(--line)',
-              }}>
-                <span style={{ fontSize: 11, color: 'var(--ink-faint)', fontFamily: 'var(--font-jetbrains-mono, JetBrains Mono), monospace', minWidth: 34 }}>
-                  {fmt(e.time)}
-                </span>
-                <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em', color: e.team === 'own' ? 'var(--accent)' : 'var(--warn)', minWidth: 70 }}>
-                  {e.team === 'own' ? 'Mon éq.' : 'Adv.'}
-                </span>
-                <span style={{ fontSize: 13, color: 'var(--ink)', flex: 1 }}>{STAT_LABELS[e.type]}</span>
-                {e.awardedTo && (
-                  <span style={{ fontSize: 10, fontWeight: 700, color: e.awardedTo === 'own' ? 'var(--accent)' : 'var(--warn)', background: `color-mix(in srgb, ${e.awardedTo === 'own' ? 'var(--accent)' : 'var(--warn)'} 12%, transparent)`, borderRadius: 6, padding: '2px 6px' }}>
-                    +1 pt
+            {events.map((e) => {
+              const accent = e.player === 'left' ? 'var(--accent)' : e.player === 'right' ? '#7c6fcd' : 'var(--warn)';
+              return (
+                <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderBottom: '1px solid var(--line)' }}>
+                  <span style={{ fontSize: 11, color: 'var(--ink-faint)', fontFamily: 'var(--font-jetbrains-mono, JetBrains Mono), monospace', minWidth: 34 }}>
+                    {fmt(e.time)}
                   </span>
-                )}
-              </div>
-            ))}
+                  <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em', color: accent, minWidth: 72 }}>
+                    {PLAYER_LABELS[e.player]}
+                  </span>
+                  <span style={{ fontSize: 13, color: 'var(--ink)', flex: 1 }}>{STAT_LABELS[e.type]}</span>
+                  {e.awardedTo && (
+                    <span style={{
+                      fontSize: 10, fontWeight: 700,
+                      color: e.awardedTo === 'own' ? 'var(--accent)' : 'var(--warn)',
+                      background: `color-mix(in srgb, ${e.awardedTo === 'own' ? 'var(--accent)' : 'var(--warn)'} 12%, transparent)`,
+                      borderRadius: 6, padding: '2px 6px',
+                    }}>
+                      +1 pt
+                    </span>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
