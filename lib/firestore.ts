@@ -2,7 +2,7 @@
 
 import {
   doc, collection, setDoc, deleteDoc, getDoc,
-  onSnapshot, query, orderBy, writeBatch,
+  onSnapshot, writeBatch,
 } from 'firebase/firestore';
 import { getDB } from './firebase';
 import type { Match, Equipment, UpcomingMatch, User } from './types';
@@ -93,17 +93,24 @@ export function subscribeUserData(
   onEquipment: (e: Equipment[])     => void,
   onUpcoming:  (u: UpcomingMatch[]) => void,
 ): () => void {
-  const u1 = onSnapshot(
-    query(matchesCol(uid), orderBy('date', 'desc')),
-    (snap) => onMatches(snap.docs.map((d) => d.data() as Match)),
+  // Tri côté client — évite les index Firestore composites
+  const u1 = onSnapshot(matchesCol(uid),
+    (snap) => onMatches(
+      snap.docs.map((d) => d.data() as Match)
+        .sort((a, b) => b.date.localeCompare(a.date))
+    ),
+    () => onMatches([]),
   );
-  const u2 = onSnapshot(
-    equipCol(uid),
+  const u2 = onSnapshot(equipCol(uid),
     (snap) => onEquipment(snap.docs.map((d) => d.data() as Equipment)),
+    () => onEquipment([]),
   );
-  const u3 = onSnapshot(
-    query(upcomingCol(uid), orderBy('date', 'asc'), orderBy('time', 'asc')),
-    (snap) => onUpcoming(snap.docs.map((d) => d.data() as UpcomingMatch)),
+  const u3 = onSnapshot(upcomingCol(uid),
+    (snap) => onUpcoming(
+      snap.docs.map((d) => d.data() as UpcomingMatch)
+        .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time))
+    ),
+    () => onUpcoming([]),
   );
 
   return () => { u1(); u2(); u3(); };
