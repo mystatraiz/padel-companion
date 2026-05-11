@@ -2,6 +2,21 @@ export type Theme = 'court' | 'neon' | 'clay';
 
 export type MatchResult = 'win' | 'loss' | 'lesson';
 
+export interface PlayerShotStats {
+  smash:          number;
+  coupDroit:      number;
+  revers:         number;
+  fauteDirecte:   number;
+  fauteProvoquee: number;
+  winner:         number;
+}
+
+export interface MatchShotStats {
+  total:       PlayerShotStats;
+  leftPlayer:  PlayerShotStats;
+  rightPlayer: PlayerShotStats;
+}
+
 export interface User {
   name: string;
   initials: string;
@@ -27,6 +42,7 @@ export interface Match {
   court: string;
   racket: string;
   shoes: string;
+  stats?: MatchShotStats;
 }
 
 export interface UpcomingMatch {
