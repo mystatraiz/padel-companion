@@ -453,6 +453,7 @@ button { font-family: inherit; }
   animation: fadein .15s ease;
 }
 @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+@keyframes spin { to { transform: rotate(360deg); } }
 .modal {
   background: var(--bg-elev); border: 1px solid var(--line);
   border-radius: var(--radius-lg); padding: 24px;

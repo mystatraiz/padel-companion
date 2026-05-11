@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Icon } from './Icon';
 import { useStore } from '@/lib/store';
+import { useAuth } from './AuthProvider';
 import { AddMatchModal } from './modals/AddMatch';
 import { AddEquipmentModal } from './modals/AddEquipment';
 
@@ -18,6 +19,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const user = useStore((s) => s.user);
+  const { signOut, user: authUser } = useAuth();
   const [modal, setModal] = useState<ModalType>(null);
   const [toast, setToastState] = useState<ToastState | null>(null);
 
@@ -44,9 +46,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="app">
       <nav className="sidebar">
         <div className="sidebar-brand">
-          <div className="brand-mark">PC</div>
+          <div className="brand-mark">PP</div>
           <div className="brand-text">
-            <div className="brand-name">Padel Companion</div>
+            <div className="brand-name">PadelPulse</div>
             <div className="brand-sub">v1.0</div>
           </div>
         </div>
@@ -64,16 +66,29 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </button>
         ))}
 
-        <div className="sidebar-foot" onClick={() => router.push('/profile')}>
+        <div className="sidebar-foot" onClick={() => router.push('/profile')} style={{ cursor: 'pointer' }}>
           <div className="avatar">{user.initials}</div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 13, fontWeight: 600, letterSpacing: '-0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {user.name}
+              {authUser?.displayName ?? user.name}
             </div>
             <div style={{ fontSize: 11, color: 'var(--ink-faint)', fontFamily: 'JetBrains Mono, monospace' }}>
               Niveau {user.level}/8
             </div>
           </div>
+          <button
+            onClick={(e) => { e.stopPropagation(); signOut(); }}
+            title="Déconnexion"
+            style={{
+              background: 'none', border: 'none', padding: 4, cursor: 'pointer',
+              color: 'var(--ink-faint)', flexShrink: 0, display: 'flex', alignItems: 'center',
+              borderRadius: 6, transition: 'color 0.15s',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--ink)')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--ink-faint)')}
+          >
+            <Icon name="logout" size={15} />
+          </button>
         </div>
       </nav>
 

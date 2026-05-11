@@ -20,13 +20,13 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Padel Companion',
-  description: 'Suivi de matchs, progression, matériel padel',
+  title: 'PadelPulse',
+  description: 'Suivi de matchs, progression et matériel padel',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'Padel',
+    title: 'PadelPulse',
   },
   icons: {
     apple: '/icon-192.png',

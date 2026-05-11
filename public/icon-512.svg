@@ -1,9 +1,25 @@
-<svg xmlns='http://www.w3.org/2000/svg' width='512' height='512' viewBox='0 0 512 512'>
-  <rect width='512' height='512' rx='112.64' fill='#1f6b4a'/>
-  <text x='50%' y='54%' dominant-baseline='middle' text-anchor='middle' 
-    font-family='system-ui,sans-serif' font-weight='700' font-size='215.04' fill='white'>PC</text>
-  <rect x='76.8' y='76.8' width='358.4' height='358.4' rx='40.96'
-    fill='none' stroke='rgba(255,255,255,0.35)' stroke-width='12.8'/>
-  <line x1='256' y1='76.8' x2='256' y2='435.2'
-    stroke='rgba(255,255,255,0.35)' stroke-width='12.8'/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background -->
+  <rect width="512" height="512" rx="112" fill="#1a5c3e"/>
+
+  <!-- Pala rotated -14° around image center -->
+  <g transform="rotate(-14, 256, 256)">
+    <!-- Head of pala — rounded rectangle (very rounded corners = real pala shape) -->
+    <rect x="162" y="48" width="188" height="218" rx="94" fill="white"/>
+
+    <!-- Perforations — diamond pattern, 4 holes -->
+    <circle cx="256" cy="106" r="21" fill="#1a5c3e"/>
+    <circle cx="197" cy="170" r="19" fill="#1a5c3e"/>
+    <circle cx="315" cy="170" r="19" fill="#1a5c3e"/>
+    <circle cx="256" cy="234" r="19" fill="#1a5c3e"/>
+
+    <!-- Neck transition -->
+    <rect x="231" y="260" width="50" height="12" fill="white"/>
+
+    <!-- Handle -->
+    <rect x="235" y="268" width="42" height="126" rx="21" fill="white"/>
+
+    <!-- Grip band -->
+    <rect x="235" y="340" width="42" height="34" rx="8" fill="#7fbfa0"/>
+  </g>
 </svg>
