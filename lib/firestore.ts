@@ -70,6 +70,19 @@ export async function saveUserProfile(uid: string, data: {
   await setDoc(userDoc(uid), { ...data, profileComplete: true }, { merge: true });
 }
 
+// ─── Clear all user data ──────────────────────────────────────────────────────
+
+export async function fsClearUserData(uid: string) {
+  const { getDocs, deleteDoc } = await import('firebase/firestore');
+  const cols = [matchesCol(uid), equipCol(uid), upcomingCol(uid)];
+  for (const col of cols) {
+    const snap = await getDocs(col);
+    const batch = writeBatch(getDB());
+    snap.docs.forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+  }
+}
+
 // ─── Write helpers ────────────────────────────────────────────────────────────
 
 export const fsSetMatch        = (uid: string, m: Match)         => setDoc(doc(matchesCol(uid), m.id), m);

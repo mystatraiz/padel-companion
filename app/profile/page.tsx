@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Icon } from '@/components/Icon';
 import { useStore } from '@/lib/store';
+import { fsClearUserData } from '@/lib/firestore';
 
 const THEMES = [
   { id: 'court' as const, name: 'Court', desc: 'Vert padel · clair', swatches: ['#f4f1ea', '#1f6b4a', '#c8e87a', '#14241c'] },
@@ -22,8 +23,18 @@ export default function ProfilePage() {
   const [notifs, setNotifs] = useState(NOTIF_ITEMS.map((n) => n.defaultOn));
   const totalHours = matches.reduce((s, m) => s + m.duration, 0);
 
-  const handleReset = () => {
-    if (window.confirm('Réinitialiser ?')) reset();
+  const uid = useStore((s) => s.uid);
+  const [clearing, setClearing] = useState(false);
+
+  const handleReset = async () => {
+    if (!window.confirm('Supprimer toutes tes données (matchs, équipement, agenda) ?')) return;
+    setClearing(true);
+    try {
+      if (uid) await fsClearUserData(uid);
+      reset();
+    } finally {
+      setClearing(false);
+    }
   };
 
   return (
@@ -127,13 +138,14 @@ export default function ProfilePage() {
         <div className="card">
           <div className="flex-between">
             <div>
-              <div style={{ fontSize: 14, fontWeight: 500 }}>Réinitialiser les données de démo</div>
+              <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--warn)' }}>Supprimer toutes mes données</div>
               <div style={{ fontSize: 12, color: 'var(--ink-faint)', marginTop: 2 }}>
-                Restaure l&apos;état initial — utile pour tester l&apos;app
+                Efface définitivement matchs, équipement et agenda
               </div>
             </div>
-            <button className="btn" onClick={handleReset}>
-              Réinitialiser
+            <button className="btn" onClick={handleReset} disabled={clearing}
+              style={{ borderColor: 'var(--warn)', color: 'var(--warn)', opacity: clearing ? 0.6 : 1 }}>
+              {clearing ? '…' : 'Effacer'}
             </button>
           </div>
         </div>
