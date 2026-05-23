@@ -34,6 +34,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     { id: 'calendar',  label: 'Agenda',   href: '/calendar', icon: 'calendar' },
     { id: 'analyse',   label: 'Analyse',  href: '/analyse',  icon: 'video' },
     { id: 'stats',     label: 'Stats',    href: '/stats',    icon: 'stats' },
+    { id: 'fasting',   label: 'Jeûne',    href: '/fasting',  icon: 'flame' },
     { id: 'equipment', label: 'Matériel', href: '/equipment',icon: 'racket' },
     { id: 'profile',   label: 'Profil',   href: '/profile',  icon: 'user' },
   ];

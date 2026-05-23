@@ -1,10 +1,112 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Icon } from '@/components/Icon';
 import { Ring } from '@/components/Ring';
 import { useStore, wearPct, MONTHS_FR } from '@/lib/store';
 import { useShell } from '@/components/AppShell';
+
+// ─── Fasting widget ───────────────────────────────────────────────────────────
+
+function FastingWidget() {
+  const router   = useRouter();
+  const { fastingSessions, stopFast } = useStore();
+  const [, setTick] = useState(0);
+
+  const activeFast = fastingSessions.find((f) => !f.endTime) ?? null;
+
+  useEffect(() => {
+    if (!activeFast) return;
+    const iv = setInterval(() => setTick((t) => t + 1), 1_000);
+    return () => clearInterval(iv);
+  }, [activeFast?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (!activeFast) {
+    // Widget inactif — discret
+    return (
+      <div
+        onClick={() => router.push('/fasting')}
+        style={{
+          background: 'var(--bg-elev)', borderRadius: 14, border: '1px solid var(--line)',
+          padding: '12px 16px', marginBottom: 16, cursor: 'pointer',
+          display: 'flex', alignItems: 'center', gap: 12,
+        }}
+      >
+        <div style={{ fontSize: 20 }}>🍽️</div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 13, fontWeight: 600 }}>Jeûne intermittent</div>
+          <div style={{ fontSize: 12, color: 'var(--ink-faint)', marginTop: 1 }}>Aucun jeûne en cours · Tap pour démarrer</div>
+        </div>
+        <Icon name="flame" size={16} />
+      </div>
+    );
+  }
+
+  const elapsedMs   = Date.now() - new Date(activeFast.startTime).getTime();
+  const targetMs    = activeFast.targetHours * 3_600_000;
+  const progress    = Math.min(elapsedMs / targetMs, 1);
+  const remainingMs = Math.max(targetMs - elapsedMs, 0);
+  const done        = elapsedMs >= targetMs;
+
+  const fmtHMS = (ms: number) => {
+    const h = Math.floor(ms / 3_600_000);
+    const m = Math.floor((ms % 3_600_000) / 60_000);
+    const s = Math.floor((ms % 60_000) / 1_000);
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  };
+
+  const accent = done ? '#22c55e' : 'var(--accent)';
+
+  return (
+    <div
+      onClick={() => router.push('/fasting')}
+      style={{
+        background: 'var(--bg-elev)', borderRadius: 14,
+        border: `1px solid ${done ? 'color-mix(in srgb,#22c55e 35%,transparent)' : 'color-mix(in srgb,var(--accent) 25%,transparent)'}`,
+        padding: '14px 16px', marginBottom: 16, cursor: 'pointer',
+      }}
+    >
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+        <span style={{ fontSize: 16 }}>{done ? '🎉' : '🔥'}</span>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: accent }}>
+            {done ? 'Objectif atteint !' : 'Jeûne en cours'}
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--ink-faint)' }}>
+            {done
+              ? `${activeFast.targetHours}h complétés 🎉`
+              : `Objectif ${activeFast.targetHours}h · encore ${Math.floor(remainingMs / 3_600_000)}h${Math.floor((remainingMs % 3_600_000) / 60_000).toString().padStart(2, '0')}`}
+          </div>
+        </div>
+        {/* Timer */}
+        <div style={{
+          fontFamily: 'var(--font-jetbrains-mono, JetBrains Mono), monospace',
+          fontSize: 18, fontWeight: 800, letterSpacing: '-0.03em', color: accent,
+        }}>
+          {fmtHMS(elapsedMs)}
+        </div>
+      </div>
+
+      {/* Barre de progression */}
+      <div style={{ height: 6, background: 'var(--bg-soft)', borderRadius: 3, overflow: 'hidden' }}>
+        <div style={{
+          height: '100%', borderRadius: 3,
+          width: `${progress * 100}%`,
+          background: accent,
+          transition: 'width 1s linear',
+        }} />
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: 10, color: 'var(--ink-faint)' }}>
+        <span>0h</span>
+        <span>{activeFast.targetHours}h</span>
+      </div>
+    </div>
+  );
+}
+
+// ─── Page principale ──────────────────────────────────────────────────────────
 
 export default function Dashboard() {
   const router = useRouter();
@@ -66,6 +168,9 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* ── Widget jeûne ── */}
+      <FastingWidget />
 
       <div className="kpi-grid">
         <div className="kpi">

@@ -2,6 +2,14 @@ export type Theme = 'court' | 'neon' | 'clay';
 
 export type MatchResult = 'win' | 'loss' | 'lesson';
 
+export interface FastingSession {
+  id:          string;
+  startTime:   string;   // ISO datetime
+  endTime?:    string;   // ISO datetime — undefined si en cours
+  targetHours: number;   // 16 | 18 | 20 | 24
+  completed:   boolean;  // a atteint le target avant de stopper
+}
+
 export interface PlayerShotStats {
   smash:          number;
   coupDroit:      number;
@@ -71,11 +79,12 @@ export interface Equipment {
 }
 
 export interface AppState {
-  theme: Theme;
-  user: User;
-  matches: Match[];
-  upcoming: UpcomingMatch[];
-  equipment: Equipment[];
+  theme:           Theme;
+  user:            User;
+  matches:         Match[];
+  upcoming:        UpcomingMatch[];
+  equipment:       Equipment[];
+  fastingSessions: FastingSession[];
 }
 
 export type MatchInput = Omit<Match, 'id'>;

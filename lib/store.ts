@@ -2,21 +2,23 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { AppState, Match, MatchInput, Equipment, EquipmentInput, Theme, UpcomingMatch, User } from './types';
+import type { AppState, Match, MatchInput, Equipment, EquipmentInput, Theme, UpcomingMatch, User, FastingSession } from './types';
 import { DEFAULT_STATE } from './defaults';
 import {
   fsSetMatch, fsSetEquipment, fsSetEquipmentBatch,
   fsDeleteEquipment, fsSetUpcoming, fsDeleteUpcoming,
+  fsSetFasting,
 } from './firestore';
 
 // ─── Store shape ──────────────────────────────────────────────────────────────
 
 interface StoreActions {
-  setUid:       (uid: string | null) => void;
-  setUser:      (user: User) => void;
-  setMatches:   (m: Match[]) => void;
-  setEquipment: (e: Equipment[]) => void;
-  setUpcoming:  (u: UpcomingMatch[]) => void;
+  setUid:          (uid: string | null) => void;
+  setUser:         (user: User) => void;
+  setMatches:      (m: Match[]) => void;
+  setEquipment:    (e: Equipment[]) => void;
+  setUpcoming:     (u: UpcomingMatch[]) => void;
+  setFasting:      (s: FastingSession[]) => void;
 
   setTheme:        (theme: Theme) => void;
   addMatch:        (match: MatchInput) => void;
@@ -25,6 +27,8 @@ interface StoreActions {
   deleteEquipment: (id: string) => void;
   bookSlot:        (slot: Omit<UpcomingMatch, 'id'>) => void;
   cancelUpcoming:  (id: string) => void;
+  startFast:       (targetHours: number) => void;
+  stopFast:        () => void;
   reset:           () => void;
 }
 
@@ -45,6 +49,7 @@ export const useStore = create<StoreState & StoreActions>()(
       setMatches:   (matches)   => set({ matches }),
       setEquipment: (equipment) => set({ equipment }),
       setUpcoming:  (upcoming)  => set({ upcoming }),
+      setFasting:   (fastingSessions) => set({ fastingSessions }),
 
       setTheme: (theme) => set({ theme }),
 
@@ -103,6 +108,32 @@ export const useStore = create<StoreState & StoreActions>()(
           return { upcoming: s.upcoming.filter((u) => u.id !== id) };
         }),
 
+      startFast: (targetHours) =>
+        set((s) => {
+          // Un seul jeûne actif à la fois
+          if (s.fastingSessions.some((f) => !f.endTime)) return s;
+          const session: FastingSession = {
+            id:          'fast' + Date.now(),
+            startTime:   new Date().toISOString(),
+            targetHours,
+            completed:   false,
+          };
+          if (s.uid) fsSetFasting(s.uid, session).catch(() => {});
+          return { fastingSessions: [session, ...s.fastingSessions] };
+        }),
+
+      stopFast: () =>
+        set((s) => {
+          const active = s.fastingSessions.find((f) => !f.endTime);
+          if (!active) return s;
+          const endTime  = new Date().toISOString();
+          const elapsed  = (Date.now() - new Date(active.startTime).getTime()) / 3_600_000;
+          const completed = elapsed >= active.targetHours;
+          const updated: FastingSession = { ...active, endTime, completed };
+          if (s.uid) fsSetFasting(s.uid, updated).catch(() => {});
+          return { fastingSessions: s.fastingSessions.map((f) => f.id === active.id ? updated : f) };
+        }),
+
       reset: () => set({ ...DEFAULT_STATE, uid: get().uid }),
     }),
     {
@@ -121,3 +152,30 @@ export const wearClass = (e: Equipment) => {
 };
 
 export const MONTHS_FR = ['jan','fév','mar','avr','mai','juin','juil','août','sep','oct','nov','déc'];
+
+/** Calcule la série actuelle et la meilleure série de jeûnes complétés */
+export function fastingStreaks(sessions: import('./types').FastingSession[]) {
+  const completed = sessions.filter((s) => s.completed && s.endTime);
+  if (!completed.length) return { current: 0, best: 0 };
+
+  // Jours uniques (YYYY-MM-DD) triés croissant
+  const days = [...new Set(completed.map((s) => s.endTime!.slice(0, 10)))].sort();
+
+  let cur = 1, best = 1;
+  const streakPerDay: number[] = [1];
+  for (let i = 1; i < days.length; i++) {
+    const diff = Math.round(
+      (new Date(days[i]).getTime() - new Date(days[i - 1]).getTime()) / 86_400_000
+    );
+    cur = diff === 1 ? cur + 1 : 1;
+    best = Math.max(best, cur);
+    streakPerDay.push(cur);
+  }
+
+  const lastDay   = days[days.length - 1];
+  const today     = new Date().toISOString().slice(0, 10);
+  const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+  const current   = (lastDay === today || lastDay === yesterday) ? streakPerDay[streakPerDay.length - 1] : 0;
+
+  return { current, best };
+}

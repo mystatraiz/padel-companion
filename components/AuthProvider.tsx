@@ -6,7 +6,7 @@ import {
   GoogleAuthProvider, type User,
 } from 'firebase/auth';
 import { getFirebaseAuth } from '@/lib/firebase';
-import { getUserSetupStatus, seedDefaultData, subscribeUserData } from '@/lib/firestore';
+import { getUserSetupStatus, seedDefaultData, subscribeUserData, subscribeFasting } from '@/lib/firestore';
 import { useStore } from '@/lib/store';
 
 // ─── Context ──────────────────────────────────────────────────────────────────
@@ -43,11 +43,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const setMatches   = useStore((s) => s.setMatches);
   const setEquipment = useStore((s) => s.setEquipment);
   const setUpcoming  = useStore((s) => s.setUpcoming);
+  const setFasting   = useStore((s) => s.setFasting);
+
+  const unsubFastingRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     const unsubAuth = onAuthStateChanged(getFirebaseAuth(), async (firebaseUser) => {
       unsubDataRef.current?.();
       unsubDataRef.current = null;
+      unsubFastingRef.current?.();
+      unsubFastingRef.current = null;
 
       if (firebaseUser) {
         setUser(firebaseUser);
@@ -85,6 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             (e) => { setEquipment(e); if (!ready.e) { ready.e = true; checkAllReady(); } },
             (u) => { setUpcoming(u);  if (!ready.u) { ready.u = true; checkAllReady(); } },
           );
+          unsubFastingRef.current = subscribeFasting(firebaseUser.uid, setFasting);
         } catch (err) {
           console.error('Firestore init error:', err);
           // Still show the app — profile setup will handle missing data
@@ -104,6 +110,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       unsubAuth();
       unsubDataRef.current?.();
+      unsubFastingRef.current?.();
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 

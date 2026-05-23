@@ -5,7 +5,7 @@ import {
   onSnapshot, writeBatch,
 } from 'firebase/firestore';
 import { getDB } from './firebase';
-import type { Match, Equipment, UpcomingMatch, User } from './types';
+import type { Match, Equipment, UpcomingMatch, User, FastingSession } from './types';
 import { DEFAULT_STATE } from './defaults';
 
 // ─── Collection references ────────────────────────────────────────────────────
@@ -14,6 +14,7 @@ const userDoc     = (uid: string) => doc(getDB(), 'users', uid);
 const matchesCol  = (uid: string) => collection(getDB(), 'users', uid, 'matches');
 const equipCol    = (uid: string) => collection(getDB(), 'users', uid, 'equipment');
 const upcomingCol = (uid: string) => collection(getDB(), 'users', uid, 'upcoming');
+const fastingCol  = (uid: string) => collection(getDB(), 'users', uid, 'fasting');
 
 // ─── Setup status (single read) ───────────────────────────────────────────────
 
@@ -73,8 +74,8 @@ export async function saveUserProfile(uid: string, data: {
 // ─── Clear all user data ──────────────────────────────────────────────────────
 
 export async function fsClearUserData(uid: string) {
-  const { getDocs, deleteDoc } = await import('firebase/firestore');
-  const cols = [matchesCol(uid), equipCol(uid), upcomingCol(uid)];
+  const { getDocs } = await import('firebase/firestore');
+  const cols = [matchesCol(uid), equipCol(uid), upcomingCol(uid), fastingCol(uid)];
   for (const col of cols) {
     const snap = await getDocs(col);
     const batch = writeBatch(getDB());
@@ -85,12 +86,14 @@ export async function fsClearUserData(uid: string) {
 
 // ─── Write helpers ────────────────────────────────────────────────────────────
 
-export const fsSetMatch        = (uid: string, m: Match)         => setDoc(doc(matchesCol(uid), m.id), m);
-export const fsDeleteMatch     = (uid: string, id: string)       => deleteDoc(doc(matchesCol(uid), id));
-export const fsSetEquipment    = (uid: string, e: Equipment)     => setDoc(doc(equipCol(uid), e.id), e);
-export const fsDeleteEquipment = (uid: string, id: string)       => deleteDoc(doc(equipCol(uid), id));
-export const fsSetUpcoming     = (uid: string, u: UpcomingMatch) => setDoc(doc(upcomingCol(uid), u.id), u);
-export const fsDeleteUpcoming  = (uid: string, id: string)       => deleteDoc(doc(upcomingCol(uid), id));
+export const fsSetMatch        = (uid: string, m: Match)           => setDoc(doc(matchesCol(uid), m.id), m);
+export const fsDeleteMatch     = (uid: string, id: string)         => deleteDoc(doc(matchesCol(uid), id));
+export const fsSetEquipment    = (uid: string, e: Equipment)       => setDoc(doc(equipCol(uid), e.id), e);
+export const fsDeleteEquipment = (uid: string, id: string)         => deleteDoc(doc(equipCol(uid), id));
+export const fsSetUpcoming     = (uid: string, u: UpcomingMatch)   => setDoc(doc(upcomingCol(uid), u.id), u);
+export const fsDeleteUpcoming  = (uid: string, id: string)         => deleteDoc(doc(upcomingCol(uid), id));
+export const fsSetFasting      = (uid: string, s: FastingSession)  => setDoc(doc(fastingCol(uid), s.id), s);
+export const fsDeleteFasting   = (uid: string, id: string)         => deleteDoc(doc(fastingCol(uid), id));
 
 export async function fsSetEquipmentBatch(uid: string, items: Equipment[]) {
   const batch = writeBatch(getDB());
@@ -98,7 +101,7 @@ export async function fsSetEquipmentBatch(uid: string, items: Equipment[]) {
   await batch.commit();
 }
 
-// ─── Real-time subscription ───────────────────────────────────────────────────
+// ─── Real-time subscriptions ──────────────────────────────────────────────────
 
 export function subscribeUserData(
   uid: string,
@@ -106,7 +109,6 @@ export function subscribeUserData(
   onEquipment: (e: Equipment[])     => void,
   onUpcoming:  (u: UpcomingMatch[]) => void,
 ): () => void {
-  // Tri côté client — évite les index Firestore composites
   const u1 = onSnapshot(matchesCol(uid),
     (snap) => onMatches(
       snap.docs.map((d) => d.data() as Match)
@@ -127,4 +129,18 @@ export function subscribeUserData(
   );
 
   return () => { u1(); u2(); u3(); };
+}
+
+export function subscribeFasting(
+  uid: string,
+  onFasting: (s: FastingSession[]) => void,
+): () => void {
+  return onSnapshot(
+    fastingCol(uid),
+    (snap) => onFasting(
+      snap.docs.map((d) => d.data() as FastingSession)
+        .sort((a, b) => b.startTime.localeCompare(a.startTime))
+    ),
+    () => onFasting([]),
+  );
 }
