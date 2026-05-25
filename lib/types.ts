@@ -36,6 +36,7 @@ export interface User {
   dominantHand?: 'left' | 'right';
   preferredSide?: 'left' | 'right';
   phone?: string;
+  height?: number; // cm
 }
 
 export interface Match {

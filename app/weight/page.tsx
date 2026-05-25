@@ -124,8 +124,15 @@ function WeightChart({ entries, days }: { entries: WeightEntry[]; days: number }
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 
+function imcCategory(imc: number): { label: string; color: string } {
+  if (imc < 18.5) return { label: 'Insuffisance pondérale', color: 'var(--warn)' };
+  if (imc < 25)   return { label: 'Poids normal', color: 'var(--good)' };
+  if (imc < 30)   return { label: 'Surpoids', color: '#f59e0b' };
+  return { label: 'Obésité', color: 'var(--warn)' };
+}
+
 export default function WeightPage() {
-  const { weightEntries, logWeight, deleteWeight } = useStore();
+  const { weightEntries, logWeight, deleteWeight, user } = useStore();
 
   const today     = TODAY();
   const todayEntry = weightEntries.find((w) => w.date === today);
@@ -140,6 +147,10 @@ export default function WeightPage() {
   const [range,   setRange]   = useState<30 | 90 | 365>(30);
   const [saved,   setSaved]   = useState(false);
   const inputRef  = useRef<HTMLInputElement>(null);
+
+  const height = user.height; // cm
+  const imc    = latest && height ? +(latest / ((height / 100) ** 2)).toFixed(1) : null;
+  const imcCat = imc ? imcCategory(imc) : null;
 
   const handleLog = () => {
     const val = parseFloat(input.replace(',', '.'));
@@ -223,18 +234,25 @@ export default function WeightPage() {
       </div>
 
       {/* ── Stats rapides ── */}
-      {weightEntries.length > 1 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 16 }}>
+      {weightEntries.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: imc ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)', gap: 10, marginBottom: 16 }}>
           {[
-            { label: 'Actuel',    value: latest ? `${latest} kg` : '—', color: 'var(--ink)' },
-            { label: '7 derniers jours', value: delta7 !== null ? `${delta7 > 0 ? '+' : ''}${delta7} kg` : '—', color: deltaColor(delta7) },
-            { label: '30 derniers jours', value: delta30 !== null ? `${delta30 > 0 ? '+' : ''}${delta30} kg` : '—', color: deltaColor(delta30) },
+            { label: 'Actuel',    value: latest ? `${latest} kg` : '—', color: 'var(--ink)', sub: undefined as string | undefined },
+            ...(imc ? [{ label: 'IMC', value: String(imc), color: imcCat!.color, sub: imcCat!.label }] : []),
+            { label: '7 j',  value: delta7  !== null ? `${delta7  > 0 ? '+' : ''}${delta7} kg`  : '—', color: deltaColor(delta7),  sub: undefined },
+            { label: '30 j', value: delta30 !== null ? `${delta30 > 0 ? '+' : ''}${delta30} kg` : '—', color: deltaColor(delta30), sub: undefined },
           ].map((k) => (
             <div key={k.label} style={{ background: 'var(--bg-elev)', borderRadius: 14, padding: '12px 14px', border: '1px solid var(--line)', textAlign: 'center' }}>
               <div style={{ fontSize: 10, color: 'var(--ink-faint)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '.06em' }}>{k.label}</div>
               <div style={{ fontSize: 18, fontWeight: 800, color: k.color, fontFamily: 'var(--font-jetbrains-mono, JetBrains Mono), monospace' }}>{k.value}</div>
+              {k.sub && <div style={{ fontSize: 10, color: k.color, marginTop: 2, fontWeight: 600 }}>{k.sub}</div>}
             </div>
           ))}
+        </div>
+      )}
+      {!height && weightEntries.length > 0 && (
+        <div style={{ fontSize: 12, color: 'var(--ink-faint)', marginTop: -8, marginBottom: 14, textAlign: 'center' }}>
+          💡 Renseigne ta taille dans ton profil pour calculer ton IMC
         </div>
       )}
 

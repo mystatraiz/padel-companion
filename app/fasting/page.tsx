@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useStore, fastingStreaks } from '@/lib/store';
+import { Icon } from '@/components/Icon';
 import type { FastingSession } from '@/lib/types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -24,6 +25,13 @@ function fmtHM(ms: number): string {
 function dayLabel(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+/** Converts a JS Date to a datetime-local input value (local time) */
+function toDatetimeLocal(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 // ─── Circular timer ring ──────────────────────────────────────────────────────
@@ -68,13 +76,153 @@ function TimerRing({ progress, elapsed, target, done }: {
   );
 }
 
+// ─── Modal édition jeûne ──────────────────────────────────────────────────────
+
+function EditFastModal({
+  session,
+  onClose,
+}: {
+  session: FastingSession;
+  onClose: () => void;
+}) {
+  const { editFast, deleteFast } = useStore();
+  const isActive = !session.endTime;
+
+  const [startVal,  setStartVal]  = useState(toDatetimeLocal(session.startTime));
+  const [endVal,    setEndVal]    = useState(session.endTime ? toDatetimeLocal(session.endTime) : '');
+  const [targetVal, setTargetVal] = useState(session.targetHours);
+  const [confirmDel, setConfirmDel] = useState(false);
+
+  const handleSave = () => {
+    const startTime = new Date(startVal).toISOString();
+    const endTime   = endVal ? new Date(endVal).toISOString() : undefined;
+    editFast(session.id, { startTime, endTime, targetHours: targetVal });
+    onClose();
+  };
+
+  const handleDelete = () => {
+    if (!confirmDel) { setConfirmDel(true); return; }
+    deleteFast(session.id);
+    onClose();
+  };
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <h3 style={{ margin: 0, fontSize: 18, letterSpacing: '-0.02em' }}>
+            {isActive ? 'Modifier le jeûne en cours' : 'Modifier ce jeûne'}
+          </h3>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-faint)', padding: 4 }}>
+            <Icon name="x" size={18} />
+          </button>
+        </div>
+
+        {/* Start time */}
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ fontSize: 12, color: 'var(--ink-soft)', fontWeight: 500, display: 'block', marginBottom: 6 }}>
+            Heure de début
+          </label>
+          <input
+            type="datetime-local"
+            value={startVal}
+            onChange={(e) => setStartVal(e.target.value)}
+            style={{
+              width: '100%', padding: '10px 12px', borderRadius: 10, boxSizing: 'border-box',
+              border: '1px solid var(--line)', background: 'var(--bg)',
+              color: 'var(--ink)', fontSize: 14, fontFamily: 'inherit', outline: 'none',
+            }}
+          />
+        </div>
+
+        {/* End time (hidden for active fast — it has no endTime yet) */}
+        {!isActive && (
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ fontSize: 12, color: 'var(--ink-soft)', fontWeight: 500, display: 'block', marginBottom: 6 }}>
+              Heure de fin
+            </label>
+            <input
+              type="datetime-local"
+              value={endVal}
+              onChange={(e) => setEndVal(e.target.value)}
+              style={{
+                width: '100%', padding: '10px 12px', borderRadius: 10, boxSizing: 'border-box',
+                border: '1px solid var(--line)', background: 'var(--bg)',
+                color: 'var(--ink)', fontSize: 14, fontFamily: 'inherit', outline: 'none',
+              }}
+            />
+          </div>
+        )}
+
+        {/* Target */}
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ fontSize: 12, color: 'var(--ink-soft)', fontWeight: 500, display: 'block', marginBottom: 8 }}>
+            Durée cible
+          </label>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {TARGETS.map((h) => (
+              <button
+                key={h}
+                onClick={() => setTargetVal(h)}
+                style={{
+                  padding: '7px 16px', borderRadius: 9, border: 'none', cursor: 'pointer',
+                  background: targetVal === h ? 'var(--accent)' : 'var(--bg-soft)',
+                  color: targetVal === h ? 'var(--accent-ink)' : 'var(--ink-soft)',
+                  fontSize: 13, fontWeight: 700, transition: 'all .15s',
+                }}
+              >
+                {h}h
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <button
+            onClick={handleSave}
+            style={{
+              flex: 1, padding: '11px 0', borderRadius: 10, border: 'none',
+              background: 'var(--accent)', color: 'var(--accent-ink)',
+              fontSize: 14, fontWeight: 700, cursor: 'pointer',
+            }}
+          >
+            Enregistrer
+          </button>
+          <button
+            onClick={handleDelete}
+            style={{
+              padding: '11px 16px', borderRadius: 10, border: '1px solid var(--line)',
+              background: confirmDel ? 'var(--warn)' : 'var(--bg-soft)',
+              color: confirmDel ? 'white' : 'var(--warn)',
+              fontSize: 14, fontWeight: 700, cursor: 'pointer', transition: 'all .15s',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {confirmDel ? 'Confirmer' : isActive ? 'Annuler ce jeûne' : 'Supprimer'}
+          </button>
+        </div>
+        {confirmDel && (
+          <button
+            onClick={() => setConfirmDel(false)}
+            style={{ width: '100%', marginTop: 8, padding: '8px 0', borderRadius: 10, border: 'none', background: 'transparent', color: 'var(--ink-faint)', fontSize: 13, cursor: 'pointer' }}
+          >
+            Garder
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function FastingPage() {
   const { fastingSessions, startFast, stopFast } = useStore();
-  const [tick,       setTick]       = useState(0);
-  const [target,     setTarget]     = useState<number>(16);
+  const [tick,        setTick]        = useState(0);
+  const [target,      setTarget]      = useState<number>(16);
   const [confirmStop, setConfirmStop] = useState(false);
+  const [editSession, setEditSession] = useState<FastingSession | null>(null);
 
   const activeFast = fastingSessions.find((f) => !f.endTime) ?? null;
 
@@ -102,7 +250,6 @@ export default function FastingPage() {
       }, 0) / completed.length
     : 0;
 
-  // Grouped history by week for display
   const history = fastingSessions.filter((s) => s.endTime).slice(0, 20);
 
   const handleStart = () => {
@@ -169,45 +316,56 @@ export default function FastingPage() {
               )}
             </div>
 
-            {/* Bouton stop */}
-            {confirmStop ? (
-              <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+            {/* Boutons stop + modifier */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+              {confirmStop ? (
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+                  <button
+                    onClick={handleStop}
+                    style={{
+                      padding: '12px 28px', borderRadius: 12, border: 'none',
+                      background: 'var(--warn)', color: 'white',
+                      fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                    }}
+                  >
+                    Oui, terminer
+                  </button>
+                  <button
+                    onClick={() => setConfirmStop(false)}
+                    style={{
+                      padding: '12px 20px', borderRadius: 12, border: '1px solid var(--line)',
+                      background: 'var(--bg-soft)', color: 'var(--ink-soft)',
+                      fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                    }}
+                  >
+                    Annuler
+                  </button>
+                </div>
+              ) : (
                 <button
                   onClick={handleStop}
                   style={{
-                    padding: '12px 28px', borderRadius: 12, border: 'none',
-                    background: 'var(--warn)', color: 'white',
-                    fontSize: 14, fontWeight: 700, cursor: 'pointer',
-                    fontFamily: 'var(--font-inter-tight, Inter Tight), system-ui',
+                    width: '100%', maxWidth: 300, padding: '13px 0', borderRadius: 12,
+                    border: '1px solid var(--line)', background: 'var(--bg-soft)',
+                    color: 'var(--ink-soft)', fontSize: 14, fontWeight: 700, cursor: 'pointer',
                   }}
                 >
-                  Oui, terminer
+                  Terminer le jeûne
                 </button>
-                <button
-                  onClick={() => setConfirmStop(false)}
-                  style={{
-                    padding: '12px 20px', borderRadius: 12, border: '1px solid var(--line)',
-                    background: 'var(--bg-soft)', color: 'var(--ink-soft)',
-                    fontSize: 14, fontWeight: 600, cursor: 'pointer',
-                    fontFamily: 'var(--font-inter-tight, Inter Tight), system-ui',
-                  }}
-                >
-                  Annuler
-                </button>
-              </div>
-            ) : (
+              )}
+              {/* Modifier le jeûne actif */}
               <button
-                onClick={handleStop}
+                onClick={() => setEditSession(activeFast)}
                 style={{
-                  width: '100%', maxWidth: 300, padding: '13px 0', borderRadius: 12,
-                  border: '1px solid var(--line)', background: 'var(--bg-soft)',
-                  color: 'var(--ink-soft)', fontSize: 14, fontWeight: 700, cursor: 'pointer',
-                  fontFamily: 'var(--font-inter-tight, Inter Tight), system-ui',
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  color: 'var(--ink-faint)', fontSize: 12, fontWeight: 600,
+                  display: 'flex', alignItems: 'center', gap: 5,
                 }}
               >
-                Terminer le jeûne
+                <Icon name="edit" size={13} />
+                Modifier / annuler ce jeûne
               </button>
-            )}
+            </div>
           </>
         ) : (
           <>
@@ -224,9 +382,8 @@ export default function FastingPage() {
                     style={{
                       padding: '8px 16px', borderRadius: 10, border: 'none', cursor: 'pointer',
                       background: target === h ? 'var(--accent)' : 'var(--bg-soft)',
-                      color: target === h ? 'white' : 'var(--ink-soft)',
+                      color: target === h ? 'var(--accent-ink)' : 'var(--ink-soft)',
                       fontSize: 14, fontWeight: 700, transition: 'all .15s',
-                      fontFamily: 'var(--font-inter-tight, Inter Tight), system-ui',
                     }}
                   >
                     {h}h
@@ -248,9 +405,8 @@ export default function FastingPage() {
               onClick={handleStart}
               style={{
                 width: '100%', maxWidth: 300, padding: '14px 0', borderRadius: 12, border: 'none',
-                background: 'var(--accent)', color: 'white',
+                background: 'var(--accent)', color: 'var(--accent-ink)',
                 fontSize: 15, fontWeight: 700, cursor: 'pointer',
-                fontFamily: 'var(--font-inter-tight, Inter Tight), system-ui',
               }}
             >
               🔥 Démarrer le jeûne {target}h
@@ -353,6 +509,19 @@ export default function FastingPage() {
                       }} />
                     </div>
                   </div>
+
+                  {/* Bouton éditer */}
+                  <button
+                    onClick={() => setEditSession(s)}
+                    style={{
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      color: 'var(--ink-faint)', padding: 6, borderRadius: 8,
+                      flexShrink: 0, display: 'flex', alignItems: 'center',
+                    }}
+                    title="Modifier"
+                  >
+                    <Icon name="edit" size={14} />
+                  </button>
                 </div>
               );
             })}
@@ -364,6 +533,14 @@ export default function FastingPage() {
         <div style={{ textAlign: 'center', color: 'var(--ink-faint)', fontSize: 14, padding: '24px 0' }}>
           Lance ton premier jeûne pour commencer à tracker tes statistiques 🍽️
         </div>
+      )}
+
+      {/* ── Modal édition ── */}
+      {editSession && (
+        <EditFastModal
+          session={editSession}
+          onClose={() => setEditSession(null)}
+        />
       )}
     </>
   );

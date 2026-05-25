@@ -124,6 +124,7 @@ export function ProfileSetup() {
     firstName:     '',
     lastName:      '',
     nickname:      '',
+    height:        '' as string | number,
     level:         5,
     dominantHand:  'right' as 'left' | 'right',
     preferredSide: 'right' as 'left' | 'right',
@@ -140,15 +141,21 @@ export function ProfileSetup() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.firstName.trim()) { setError('Le prénom est obligatoire.'); return; }
+    const heightNum = form.height === '' ? undefined : Number(form.height);
+    if (heightNum !== undefined && (heightNum < 100 || heightNum > 250)) {
+      setError('La taille doit être entre 100 et 250 cm.');
+      return;
+    }
     if (!uid) return;
 
     setSaving(true);
     setError('');
     try {
-      await saveUserProfile(uid, form);
+      const formWithHeight = { ...form, height: form.height === '' ? undefined : Number(form.height) };
+      await saveUserProfile(uid, formWithHeight);
       const name     = `${form.firstName} ${form.lastName}`.trim();
       const initials = [form.firstName[0], form.lastName[0]].filter(Boolean).join('').toUpperCase() || form.firstName[0].toUpperCase();
-      setUser({ ...form, name, initials });
+      setUser({ ...formWithHeight, name, initials });
       completeProfile();
     } catch {
       setError('Erreur lors de la sauvegarde. Réessaie.');
@@ -208,6 +215,23 @@ export function ProfileSetup() {
               onChange={(e) => set('nickname', e.target.value)}
               style={inputStyle}
             />
+          </Field>
+          <Field label="Taille (cm) *">
+            <div style={{ position: 'relative' }}>
+              <input
+                type="number" placeholder="175" min={100} max={250}
+                value={form.height}
+                onChange={(e) => set('height', e.target.value)}
+                style={{ ...inputStyle, paddingRight: 40 }}
+              />
+              <span style={{
+                position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
+                fontSize: 13, color: 'var(--ink-faint)', fontWeight: 600,
+              }}>cm</span>
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--ink-faint)', marginTop: 2 }}>
+              Utilisée pour calculer ton IMC avec le tracker de poids
+            </div>
           </Field>
         </section>
 

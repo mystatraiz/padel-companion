@@ -7,7 +7,7 @@ import { DEFAULT_STATE } from './defaults';
 import {
   fsSetMatch, fsSetEquipment, fsSetEquipmentBatch,
   fsDeleteEquipment, fsSetUpcoming, fsDeleteUpcoming,
-  fsSetFasting, fsSetWeight, fsDeleteWeight,
+  fsSetFasting, fsDeleteFasting, fsSetWeight, fsDeleteWeight,
 } from './firestore';
 
 // ─── Store shape ──────────────────────────────────────────────────────────────
@@ -30,6 +30,8 @@ interface StoreActions {
   cancelUpcoming:  (id: string) => void;
   startFast:       (targetHours: number) => void;
   stopFast:        () => void;
+  editFast:        (id: string, updates: Partial<FastingSession>) => void;
+  deleteFast:      (id: string) => void;
   logWeight:       (weight: number, date?: string) => void;
   deleteWeight:    (id: string) => void;
   reset:           () => void;
@@ -132,6 +134,28 @@ export const useStore = create<StoreState & StoreActions>()(
           const updated: FastingSession = { ...active, endTime, completed };
           if (s.uid) fsSetFasting(s.uid, updated).catch(() => {});
           return { fastingSessions: s.fastingSessions.map((f) => f.id === active.id ? updated : f) };
+        }),
+
+      editFast: (id, updates) =>
+        set((s) => {
+          const session = s.fastingSessions.find((f) => f.id === id);
+          if (!session) return s;
+          const merged = { ...session, ...updates };
+          // Recompute completed if times changed
+          if (merged.endTime) {
+            const elapsed = (new Date(merged.endTime).getTime() - new Date(merged.startTime).getTime()) / 3_600_000;
+            merged.completed = elapsed >= merged.targetHours;
+          } else {
+            merged.completed = false;
+          }
+          if (s.uid) fsSetFasting(s.uid, merged).catch(() => {});
+          return { fastingSessions: s.fastingSessions.map((f) => f.id === id ? merged : f) };
+        }),
+
+      deleteFast: (id) =>
+        set((s) => {
+          if (s.uid) fsDeleteFasting(s.uid, id).catch(() => {});
+          return { fastingSessions: s.fastingSessions.filter((f) => f.id !== id) };
         }),
 
       logWeight: (weight, date) =>
