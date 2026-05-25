@@ -39,7 +39,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/';
-    if (href === '/padel') return ['/padel','/calendar','/stats','/analyse','/equipment','/match','/reserve'].some(p => pathname.startsWith(p));
+    if (href === '/padel') return ['/padel','/calendar','/stats','/analyse','/equipment','/match','/reserve','/warmup'].some(p => pathname.startsWith(p));
     return pathname.startsWith(href);
   };
 

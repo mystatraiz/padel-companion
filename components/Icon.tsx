@@ -73,6 +73,14 @@ export function Icon({ name, size = 18, stroke = 1.6 }: IconProps) {
       return <svg {...props}><path d="M6 3h12a1 1 0 0 1 1 1l2 16H3L5 4a1 1 0 0 1 1-1z"/><path d="M12 3v4M9 10a3 3 0 0 0 6 0"/></svg>;
     case 'heart':
       return <svg {...props}><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.6z"/></svg>;
+    case 'zap':
+      return <svg {...props}><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>;
+    case 'play':
+      return <svg {...props}><polygon points="5,3 19,12 5,21"/></svg>;
+    case 'pause':
+      return <svg {...props}><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>;
+    case 'skip':
+      return <svg {...props}><polygon points="5,4 15,12 5,20"/><line x1="19" y1="4" x2="19" y2="20"/></svg>;
     default:
       return null;
   }

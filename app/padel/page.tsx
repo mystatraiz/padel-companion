@@ -33,6 +33,14 @@ export default function PadelHub() {
       accent: '#7c6fcd',
     },
     {
+      id: 'warmup',
+      href: '/warmup',
+      icon: 'zap' as const,
+      label: 'Échauffement',
+      desc: '3 protocoles · 7 / 12 / 15 min',
+      accent: '#f59e0b',
+    },
+    {
       id: 'analyse',
       href: '/analyse',
       icon: 'video' as const,
@@ -46,7 +54,7 @@ export default function PadelHub() {
       icon: 'racket' as const,
       label: 'Matériel',
       desc: alertEq ? `⚠️ ${alertEq.brand} ${alertEq.name} à remplacer` : `${equipment.length} équipement${equipment.length !== 1 ? 's' : ''}`,
-      accent: alertEq ? 'var(--warn)' : '#f59e0b',
+      accent: alertEq ? 'var(--warn)' : '#e879f9',
     },
   ];
 
