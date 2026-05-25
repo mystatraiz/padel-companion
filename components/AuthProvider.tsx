@@ -6,7 +6,7 @@ import {
   GoogleAuthProvider, type User,
 } from 'firebase/auth';
 import { getFirebaseAuth } from '@/lib/firebase';
-import { getUserSetupStatus, seedDefaultData, subscribeUserData, subscribeFasting } from '@/lib/firestore';
+import { getUserSetupStatus, seedDefaultData, subscribeUserData, subscribeFasting, subscribeWeight } from '@/lib/firestore';
 import { useStore } from '@/lib/store';
 
 // ─── Context ──────────────────────────────────────────────────────────────────
@@ -43,9 +43,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const setMatches   = useStore((s) => s.setMatches);
   const setEquipment = useStore((s) => s.setEquipment);
   const setUpcoming  = useStore((s) => s.setUpcoming);
-  const setFasting   = useStore((s) => s.setFasting);
+  const setFasting      = useStore((s) => s.setFasting);
+  const setWeightEntries= useStore((s) => s.setWeightEntries);
 
   const unsubFastingRef = useRef<(() => void) | null>(null);
+  const unsubWeightRef  = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     const unsubAuth = onAuthStateChanged(getFirebaseAuth(), async (firebaseUser) => {
@@ -53,6 +55,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       unsubDataRef.current = null;
       unsubFastingRef.current?.();
       unsubFastingRef.current = null;
+      unsubWeightRef.current?.();
+      unsubWeightRef.current = null;
 
       if (firebaseUser) {
         setUser(firebaseUser);
@@ -91,6 +95,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             (u) => { setUpcoming(u);  if (!ready.u) { ready.u = true; checkAllReady(); } },
           );
           unsubFastingRef.current = subscribeFasting(firebaseUser.uid, setFasting);
+          unsubWeightRef.current  = subscribeWeight(firebaseUser.uid, setWeightEntries);
         } catch (err) {
           console.error('Firestore init error:', err);
           // Still show the app — profile setup will handle missing data
@@ -111,6 +116,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       unsubAuth();
       unsubDataRef.current?.();
       unsubFastingRef.current?.();
+      unsubWeightRef.current?.();
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 

@@ -7,4 +7,5 @@ export const DEFAULT_STATE: AppState = {
   upcoming:        [],
   equipment:       [],
   fastingSessions: [],
+  weightEntries:   [],
 };

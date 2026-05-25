@@ -2,12 +2,12 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { AppState, Match, MatchInput, Equipment, EquipmentInput, Theme, UpcomingMatch, User, FastingSession } from './types';
+import type { AppState, Match, MatchInput, Equipment, EquipmentInput, Theme, UpcomingMatch, User, FastingSession, WeightEntry } from './types';
 import { DEFAULT_STATE } from './defaults';
 import {
   fsSetMatch, fsSetEquipment, fsSetEquipmentBatch,
   fsDeleteEquipment, fsSetUpcoming, fsDeleteUpcoming,
-  fsSetFasting,
+  fsSetFasting, fsSetWeight, fsDeleteWeight,
 } from './firestore';
 
 // ─── Store shape ──────────────────────────────────────────────────────────────
@@ -19,6 +19,7 @@ interface StoreActions {
   setEquipment:    (e: Equipment[]) => void;
   setUpcoming:     (u: UpcomingMatch[]) => void;
   setFasting:      (s: FastingSession[]) => void;
+  setWeightEntries:(w: WeightEntry[]) => void;
 
   setTheme:        (theme: Theme) => void;
   addMatch:        (match: MatchInput) => void;
@@ -29,6 +30,8 @@ interface StoreActions {
   cancelUpcoming:  (id: string) => void;
   startFast:       (targetHours: number) => void;
   stopFast:        () => void;
+  logWeight:       (weight: number, date?: string) => void;
+  deleteWeight:    (id: string) => void;
   reset:           () => void;
 }
 
@@ -44,12 +47,13 @@ export const useStore = create<StoreState & StoreActions>()(
       uid: null,
       ...DEFAULT_STATE,
 
-      setUid:       (uid)       => set({ uid }),
-      setUser:      (user)      => set({ user }),
-      setMatches:   (matches)   => set({ matches }),
-      setEquipment: (equipment) => set({ equipment }),
-      setUpcoming:  (upcoming)  => set({ upcoming }),
-      setFasting:   (fastingSessions) => set({ fastingSessions }),
+      setUid:          (uid)            => set({ uid }),
+      setUser:         (user)           => set({ user }),
+      setMatches:      (matches)        => set({ matches }),
+      setEquipment:    (equipment)      => set({ equipment }),
+      setUpcoming:     (upcoming)       => set({ upcoming }),
+      setFasting:      (fastingSessions)=> set({ fastingSessions }),
+      setWeightEntries:(weightEntries)  => set({ weightEntries }),
 
       setTheme: (theme) => set({ theme }),
 
@@ -110,13 +114,9 @@ export const useStore = create<StoreState & StoreActions>()(
 
       startFast: (targetHours) =>
         set((s) => {
-          // Un seul jeûne actif à la fois
           if (s.fastingSessions.some((f) => !f.endTime)) return s;
           const session: FastingSession = {
-            id:          'fast' + Date.now(),
-            startTime:   new Date().toISOString(),
-            targetHours,
-            completed:   false,
+            id: 'fast' + Date.now(), startTime: new Date().toISOString(), targetHours, completed: false,
           };
           if (s.uid) fsSetFasting(s.uid, session).catch(() => {});
           return { fastingSessions: [session, ...s.fastingSessions] };
@@ -126,12 +126,33 @@ export const useStore = create<StoreState & StoreActions>()(
         set((s) => {
           const active = s.fastingSessions.find((f) => !f.endTime);
           if (!active) return s;
-          const endTime  = new Date().toISOString();
-          const elapsed  = (Date.now() - new Date(active.startTime).getTime()) / 3_600_000;
+          const endTime   = new Date().toISOString();
+          const elapsed   = (Date.now() - new Date(active.startTime).getTime()) / 3_600_000;
           const completed = elapsed >= active.targetHours;
           const updated: FastingSession = { ...active, endTime, completed };
           if (s.uid) fsSetFasting(s.uid, updated).catch(() => {});
           return { fastingSessions: s.fastingSessions.map((f) => f.id === active.id ? updated : f) };
+        }),
+
+      logWeight: (weight, date) =>
+        set((s) => {
+          const today = date ?? new Date().toISOString().slice(0, 10);
+          // Remplace l'entrée du jour si elle existe déjà
+          const existing = s.weightEntries.find((w) => w.date === today);
+          if (existing) {
+            const updated: WeightEntry = { ...existing, weight };
+            if (s.uid) fsSetWeight(s.uid, updated).catch(() => {});
+            return { weightEntries: s.weightEntries.map((w) => w.id === existing.id ? updated : w) };
+          }
+          const entry: WeightEntry = { id: 'w' + Date.now(), date: today, weight };
+          if (s.uid) fsSetWeight(s.uid, entry).catch(() => {});
+          return { weightEntries: [entry, ...s.weightEntries] };
+        }),
+
+      deleteWeight: (id) =>
+        set((s) => {
+          if (s.uid) fsDeleteWeight(s.uid, id).catch(() => {});
+          return { weightEntries: s.weightEntries.filter((w) => w.id !== id) };
         }),
 
       reset: () => set({ ...DEFAULT_STATE, uid: get().uid }),
@@ -153,29 +174,20 @@ export const wearClass = (e: Equipment) => {
 
 export const MONTHS_FR = ['jan','fév','mar','avr','mai','juin','juil','août','sep','oct','nov','déc'];
 
-/** Calcule la série actuelle et la meilleure série de jeûnes complétés */
-export function fastingStreaks(sessions: import('./types').FastingSession[]) {
+export function fastingStreaks(sessions: FastingSession[]) {
   const completed = sessions.filter((s) => s.completed && s.endTime);
   if (!completed.length) return { current: 0, best: 0 };
-
-  // Jours uniques (YYYY-MM-DD) triés croissant
   const days = [...new Set(completed.map((s) => s.endTime!.slice(0, 10)))].sort();
-
   let cur = 1, best = 1;
-  const streakPerDay: number[] = [1];
+  const perDay: number[] = [1];
   for (let i = 1; i < days.length; i++) {
-    const diff = Math.round(
-      (new Date(days[i]).getTime() - new Date(days[i - 1]).getTime()) / 86_400_000
-    );
+    const diff = Math.round((new Date(days[i]).getTime() - new Date(days[i - 1]).getTime()) / 86_400_000);
     cur = diff === 1 ? cur + 1 : 1;
     best = Math.max(best, cur);
-    streakPerDay.push(cur);
+    perDay.push(cur);
   }
-
-  const lastDay   = days[days.length - 1];
+  const last      = days[days.length - 1];
   const today     = new Date().toISOString().slice(0, 10);
   const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
-  const current   = (lastDay === today || lastDay === yesterday) ? streakPerDay[streakPerDay.length - 1] : 0;
-
-  return { current, best };
+  return { current: (last === today || last === yesterday) ? perDay[perDay.length - 1] : 0, best };
 }

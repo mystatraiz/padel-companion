@@ -78,6 +78,12 @@ export interface Equipment {
   primary: boolean;
 }
 
+export interface WeightEntry {
+  id:     string;
+  date:   string;   // YYYY-MM-DD
+  weight: number;   // kg, 1 décimale
+}
+
 export interface AppState {
   theme:           Theme;
   user:            User;
@@ -85,6 +91,7 @@ export interface AppState {
   upcoming:        UpcomingMatch[];
   equipment:       Equipment[];
   fastingSessions: FastingSession[];
+  weightEntries:   WeightEntry[];
 }
 
 export type MatchInput = Omit<Match, 'id'>;

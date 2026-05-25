@@ -69,6 +69,10 @@ export function Icon({ name, size = 18, stroke = 1.6 }: IconProps) {
       return <svg {...props}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>;
     case 'video':
       return <svg {...props}><rect x="2" y="7" width="13" height="10" rx="2"/><path d="M15 9.5l5-3v11l-5-3V9.5z"/></svg>;
+    case 'scale':
+      return <svg {...props}><path d="M6 3h12a1 1 0 0 1 1 1l2 16H3L5 4a1 1 0 0 1 1-1z"/><path d="M12 3v4M9 10a3 3 0 0 0 6 0"/></svg>;
+    case 'heart':
+      return <svg {...props}><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.6z"/></svg>;
     default:
       return null;
   }
