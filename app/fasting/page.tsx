@@ -35,7 +35,7 @@ function TimerRing({ progress, elapsed, target, done }: {
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   const dash = c * Math.min(progress, 1);
-  const color = done ? '#22c55e' : 'var(--accent)';
+  const color = done ? 'var(--good)' : 'var(--accent)';
 
   return (
     <div style={{ position: 'relative', width: size, height: size, margin: '0 auto 4px' }}>
@@ -56,7 +56,7 @@ function TimerRing({ progress, elapsed, target, done }: {
         <div style={{
           fontSize: 34, fontWeight: 800, letterSpacing: '-0.04em',
           fontFamily: 'var(--font-jetbrains-mono, JetBrains Mono), monospace',
-          color: done ? '#22c55e' : 'var(--ink)',
+          color: done ? 'var(--good)' : 'var(--ink)',
         }}>
           {elapsed}
         </div>

@@ -1,4 +1,4 @@
-export type Theme = 'court' | 'neon' | 'clay';
+export type Theme = 'neon';
 
 export type MatchResult = 'win' | 'loss' | 'lesson';
 

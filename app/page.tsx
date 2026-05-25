@@ -52,7 +52,7 @@ function WeightWidget() {
         </div>
       </div>
       {delta !== null && !logogged && (
-        <div style={{ fontSize: 15, fontWeight: 800, color: delta < 0 ? '#22c55e' : delta > 0 ? 'var(--warn)' : 'var(--ink-faint)', fontFamily: 'var(--font-jetbrains-mono, JetBrains Mono), monospace' }}>
+        <div style={{ fontSize: 15, fontWeight: 800, color: delta < 0 ? 'var(--good)' : delta > 0 ? 'var(--warn)' : 'var(--ink-faint)', fontFamily: 'var(--font-jetbrains-mono, JetBrains Mono), monospace' }}>
           {delta > 0 ? '+' : ''}{delta}
         </div>
       )}
@@ -106,17 +106,17 @@ function FastingWidget() {
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   };
 
-  const accent = done ? '#22c55e' : 'var(--accent)';
+  const accent = done ? 'var(--good)' : 'var(--accent)';
 
   return (
     <div onClick={() => router.push('/fasting')} style={{ marginBottom: 12, cursor: 'pointer' }}>
       <div style={{
         background: 'var(--bg-elev)', borderRadius: 14,
-        border: `1px solid ${done ? 'color-mix(in srgb,#22c55e 35%,transparent)' : 'color-mix(in srgb,var(--accent) 25%,transparent)'}`,
+        border: `1px solid ${done ? 'color-mix(in srgb,var(--good) 35%,transparent)' : 'color-mix(in srgb,var(--accent) 25%,transparent)'}`,
         padding: '14px 16px',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
-          <div style={{ width: 40, height: 40, borderRadius: 12, flexShrink: 0, background: done ? 'color-mix(in srgb,#22c55e 12%,transparent)' : 'color-mix(in srgb,var(--accent) 12%,transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>
+          <div style={{ width: 40, height: 40, borderRadius: 12, flexShrink: 0, background: done ? 'color-mix(in srgb,var(--good) 12%,transparent)' : 'color-mix(in srgb,var(--accent) 12%,transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>
             {done ? '🎉' : '🔥'}
           </div>
           <div style={{ flex: 1 }}>

@@ -1,15 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Icon } from '@/components/Icon';
 import { useStore } from '@/lib/store';
 import { fsClearUserData } from '@/lib/firestore';
-
-const THEMES = [
-  { id: 'court' as const, name: 'Court', desc: 'Vert padel · clair', swatches: ['#f4f1ea', '#1f6b4a', '#c8e87a', '#14241c'] },
-  { id: 'neon' as const, name: 'Neon', desc: 'Sombre · lime/cyan', swatches: ['#0c0e10', '#c8ff3e', '#36e0d9', '#15181b'] },
-  { id: 'clay' as const, name: 'Clay', desc: 'Terre battue · chaud', swatches: ['#f6ede2', '#b8492a', '#2f5d3a', '#2a1c12'] },
-];
 
 const NOTIF_ITEMS = [
   { label: 'Rappel avant match', sub: '30 min avant le créneau', defaultOn: true },
@@ -19,7 +12,7 @@ const NOTIF_ITEMS = [
 ];
 
 export default function ProfilePage() {
-  const { user, matches, theme, setTheme, reset } = useStore();
+  const { user, matches, reset } = useStore();
   const [notifs, setNotifs] = useState(NOTIF_ITEMS.map((n) => n.defaultOn));
   const totalHours = matches.reduce((s, m) => s + m.duration, 0);
 
@@ -46,35 +39,6 @@ export default function ProfilePage() {
           <div className="page-sub">
             Niveau {user.level}/8 · {matches.length} matchs joués · {totalHours.toFixed(1)}h
           </div>
-        </div>
-      </div>
-
-      <div className="section" style={{ marginTop: 8 }}>
-        <div className="section-head">
-          <h2 className="section-title">Apparence</h2>
-        </div>
-        <div className="page-sub" style={{ marginTop: -4, marginBottom: 14, fontSize: 13 }}>
-          Choisis le thème qui te correspond. Le réglage est mémorisé.
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
-          {THEMES.map((t) => (
-            <div
-              key={t.id}
-              className={`theme-card ${theme === t.id ? 'selected' : ''}`}
-              onClick={() => setTheme(t.id)}
-            >
-              <div className="check">
-                <Icon name="check" size={12} />
-              </div>
-              <div className="swatch-row">
-                {t.swatches.map((c, i) => (
-                  <div key={i} className="sw" style={{ background: c }} />
-                ))}
-              </div>
-              <div className="name">{t.name}</div>
-              <div className="desc">{t.desc}</div>
-            </div>
-          ))}
         </div>
       </div>
 

@@ -150,7 +150,7 @@ export default function WeightPage() {
   };
 
   const deltaColor = (d: number | null) =>
-    d === null ? 'var(--ink-faint)' : d < 0 ? '#22c55e' : d > 0 ? 'var(--warn)' : 'var(--ink-soft)';
+    d === null ? 'var(--ink-faint)' : d < 0 ? 'var(--good)' : d > 0 ? 'var(--warn)' : 'var(--ink-soft)';
 
   return (
     <>
@@ -205,7 +205,7 @@ export default function WeightPage() {
             onClick={handleLog}
             style={{
               padding: '14px 22px', borderRadius: 14, border: 'none',
-              background: saved ? '#22c55e' : 'var(--accent)', color: 'white',
+              background: saved ? 'var(--good)' : 'var(--accent)', color: 'white',
               fontSize: 15, fontWeight: 700, cursor: 'pointer', flexShrink: 0,
               transition: 'background .2s',
             }}
@@ -288,7 +288,7 @@ export default function WeightPage() {
                     {e.weight} <span style={{ fontSize: 12, color: 'var(--ink-faint)' }}>kg</span>
                   </div>
                   {diff !== null && (
-                    <div style={{ fontSize: 12, fontWeight: 600, minWidth: 48, textAlign: 'right', color: diff < 0 ? '#22c55e' : diff > 0 ? 'var(--warn)' : 'var(--ink-faint)' }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, minWidth: 48, textAlign: 'right', color: diff < 0 ? 'var(--good)' : diff > 0 ? 'var(--warn)' : 'var(--ink-faint)' }}>
                       {diff > 0 ? '+' : ''}{diff} kg
                     </div>
                   )}

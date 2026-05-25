@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect } from 'react';
 import { useStore } from '@/lib/store';
 import { AuthProvider, LoginScreen, useAuth } from './AuthProvider';
 import { ProfileSetup } from './ProfileSetup';
@@ -8,12 +7,7 @@ import { ProfileSetup } from './ProfileSetup';
 // ─── Theme sync ───────────────────────────────────────────────────────────────
 
 function ThemeSync() {
-  const theme = useStore((s) => s.theme);
-  useEffect(() => {
-    const root = document.documentElement;
-    if (theme === 'court') root.removeAttribute('data-theme');
-    else root.setAttribute('data-theme', theme);
-  }, [theme]);
+  // Single neon theme — nothing to sync
   return null;
 }
 
